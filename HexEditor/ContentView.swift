@@ -31,6 +31,17 @@ struct ContentView: View {
     @State private var showEditWarning = false
     @Environment(\.openDocument) private var openDocument
 
+    private var duplicateFilename: String {
+        let originalName = document.filename ?? "Untitled"
+        if let dotIndex = originalName.lastIndex(of: ".") {
+            let base = String(originalName[..<dotIndex])
+            let ext = String(originalName[dotIndex...])
+            return base + ".duplicated" + ext
+        } else {
+            return originalName + ".duplicated"
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HSplitView {
@@ -201,7 +212,7 @@ struct ContentView: View {
             isPresented: $showFileExporter,
             document: document,
             contentType: .item,
-            defaultFilename: "Duplicate"
+            defaultFilename: duplicateFilename
         ) { result in
             if case .success(let url) = result {
                 UserDefaults.standard.set(true, forKey: "makeEditable")

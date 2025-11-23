@@ -6,6 +6,7 @@ final class HexDocument: ReferenceFileDocument {
     @Published var buffer: GapBuffer
     @Published var readOnly: Bool = true
     @Published var requestDuplicate = false
+    @Published var filename: String?
 
     init(initialData: Data = Data(), readOnly: Bool = true) {
         self.buffer = GapBuffer(data: initialData)
@@ -19,6 +20,7 @@ final class HexDocument: ReferenceFileDocument {
             throw CocoaError(.fileReadCorruptFile)
         }
         self.buffer = GapBuffer(data: data)
+        self.filename = configuration.file.filename
         if UserDefaults.standard.bool(forKey: "makeEditable") {
             self.readOnly = false
             UserDefaults.standard.set(false, forKey: "makeEditable")
