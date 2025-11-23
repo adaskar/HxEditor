@@ -15,6 +15,8 @@ struct HexGridView: View {
     @State private var selectionAnchor: Int?
     @State private var cursorIndex: Int?
     @State private var focusedPane: FocusedPane = .hex
+    @State private var showInsertDialog = false
+    @State private var insertPosition = 0
     
     enum FocusedPane {
         case hex, ascii
@@ -152,6 +154,15 @@ struct HexGridView: View {
                                                     }
                                                     .keyboardShortcut("v", modifiers: .command)
                                                     
+                                                    // Insert operation
+                                                    Button(action: {
+                                                        insertPosition = index
+                                                        showInsertDialog = true
+                                                    }) {
+                                                        Label("Insert...", systemImage: "plus.square")
+                                                    }
+                                                    .keyboardShortcut("i", modifiers: .command)
+                                                    
                                                     Divider()
                                                     
                                                     // Delete operation
@@ -253,6 +264,15 @@ struct HexGridView: View {
                                                     }
                                                     .keyboardShortcut("v", modifiers: .command)
                                                     
+                                                    // Insert operation
+                                                    Button(action: {
+                                                        insertPosition = index
+                                                        showInsertDialog = true
+                                                    }) {
+                                                        Label("Insert...", systemImage: "plus.square")
+                                                    }
+                                                    .keyboardShortcut("i", modifiers: .command)
+                                                    
                                                     Divider()
                                                     
                                                     // Delete operation
@@ -326,6 +346,13 @@ struct HexGridView: View {
             .onKeyPress { press in
                 handleKeyPress(press)
             }
+        }
+        .sheet(isPresented: $showInsertDialog) {
+            InsertDataView(
+                document: document,
+                insertPosition: $insertPosition,
+                isPresented: $showInsertDialog
+            )
         }
     }
     
