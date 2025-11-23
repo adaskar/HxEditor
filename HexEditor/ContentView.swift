@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var hexInputMode = false
     @State private var showInspector = false
     @State private var showStrings = false
+    @State private var showBitmap = false
     @State private var cursorIndex: Int? = nil
     @State private var selectionAnchor: Int? = nil
 
@@ -116,6 +117,11 @@ struct ContentView: View {
                 }
                 .help("Calculate checksums")
                 
+                Button(action: { showBitmap = true }) {
+                    Label("Bitmap", systemImage: "photo")
+                }
+                .help("Bitmap Visualizer")
+                
                 Divider()
                 
                 // Inspector toggle
@@ -151,6 +157,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showStatistics) {
             StatisticsView(document: document, isPresented: $showStatistics)
+        }
+        .sheet(isPresented: $showBitmap) {
+            BitmapView(document: document, isPresented: $showBitmap)
         }
         .sheet(isPresented: $showQuickActions) {
             QuickActionsView(document: document, selection: $selection, isPresented: $showQuickActions)
