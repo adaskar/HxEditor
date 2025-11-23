@@ -12,7 +12,7 @@ struct QuickActionsView: View {
     @ObservedObject var document: HexDocument
     @Binding var selection: Set<Int>
     @Binding var isPresented: Bool
-    @Environment(\.undoManager) var undoManager
+    var undoManager: UndoManager?
     
     @State private var fillByte: String = "00"
     @State private var patternType: PatternType = .incremental
@@ -151,66 +151,114 @@ struct QuickActionsView: View {
     private func performFill() {
         guard !selection.isEmpty else { return }
         guard let byte = UInt8(fillByte, radix: 16) else { return }
-        
-        for index in selection {
-            document.replace(at: index, with: byte, undoManager: undoManager)
+
+        let sorted = selection.sorted()
+        let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
+
+        // Perform the fill without individual undo registration
+        for index in sorted {
+            document.replace(at: index, with: byte)
+        }
+
+        // Register a single undo for the entire operation
+        undoManager?.registerUndo(withTarget: document) { doc in
+            for (index, originalByte) in originalBytes {
+                doc.replace(at: index, with: originalByte)
+            }
         }
     }
     
     private func generatePattern() {
         guard !selection.isEmpty else { return }
         let sorted = selection.sorted()
-        
+        let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
+
+        // Perform the pattern generation without individual undo registration
         switch patternType {
         case .incremental:
             guard let start = UInt8(startValue, radix: 16) else { return }
             for (i, index) in sorted.enumerated() {
                 let byte = UInt8((Int(start) + i) % 256)
-                document.replace(at: index, with: byte, undoManager: undoManager)
+                document.replace(at: index, with: byte)
             }
-            
+
         case .random:
             for index in sorted {
                 let byte = UInt8.random(in: 0...255)
-                document.replace(at: index, with: byte, undoManager: undoManager)
+                document.replace(at: index, with: byte)
             }
-            
+
         case .custom:
             // Could implement custom pattern input
             break
+        }
+
+        // Register a single undo for the entire operation
+        undoManager?.registerUndo(withTarget: document) { doc in
+            for (index, originalByte) in originalBytes {
+                doc.replace(at: index, with: originalByte)
+            }
         }
     }
     
     private func reverseBytes() {
         guard !selection.isEmpty else { return }
         let sorted = selection.sorted()
+        let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
         let bytes = sorted.map { document.buffer[$0] }
         let reversed = bytes.reversed()
-        
+
+        // Perform the reversal without individual undo registration
         for (index, byte) in zip(sorted, reversed) {
-            document.replace(at: index, with: byte, undoManager: undoManager)
+            document.replace(at: index, with: byte)
+        }
+
+        // Register a single undo for the entire operation
+        undoManager?.registerUndo(withTarget: document) { doc in
+            for (index, originalByte) in originalBytes {
+                doc.replace(at: index, with: originalByte)
+            }
         }
     }
     
     private func swapEndianness() {
         guard !selection.isEmpty else { return }
         let sorted = selection.sorted()
-        
-        // Swap in pairs
+        let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
+
+        // Perform the endianness swap without individual undo registration
         for i in stride(from: 0, to: sorted.count - 1, by: 2) {
             let idx1 = sorted[i]
             let idx2 = sorted[i + 1]
             let byte1 = document.buffer[idx1]
             let byte2 = document.buffer[idx2]
-            
-            document.replace(at: idx1, with: byte2, undoManager: undoManager)
-            document.replace(at: idx2, with: byte1, undoManager: undoManager)
+
+            document.replace(at: idx1, with: byte2)
+            document.replace(at: idx2, with: byte1)
+        }
+
+        // Register a single undo for the entire operation
+        undoManager?.registerUndo(withTarget: document) { doc in
+            for (index, originalByte) in originalBytes {
+                doc.replace(at: index, with: originalByte)
+            }
         }
     }
     
     private func zeroSelection() {
-        for index in selection {
-            document.replace(at: index, with: 0, undoManager: undoManager)
+        let sorted = selection.sorted()
+        let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
+
+        // Perform the zeroing without individual undo registration
+        for index in sorted {
+            document.replace(at: index, with: 0)
+        }
+
+        // Register a single undo for the entire operation
+        undoManager?.registerUndo(withTarget: document) { doc in
+            for (index, originalByte) in originalBytes {
+                doc.replace(at: index, with: originalByte)
+            }
         }
     }
     

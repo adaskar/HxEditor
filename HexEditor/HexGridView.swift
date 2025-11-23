@@ -587,6 +587,9 @@ struct HexGridView: View {
             case "b":
                 toggleBookmark(at: currentCursor)
                 return .handled
+            case "z":
+                // Let system handle undo
+                return .ignored
             default:
                 break
             }

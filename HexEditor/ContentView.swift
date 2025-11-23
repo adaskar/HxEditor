@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var document: HexDocument
     @State private var selection: Set<Int> = []
+    @Environment(\.undoManager) var undoManager
     @State private var showJumpToOffset = false
     @State private var showSearch = false
     @State private var showChecksum = false
@@ -162,7 +163,7 @@ struct ContentView: View {
             FileComparisonView(document: document, isPresented: $showFileComparison)
         }
         .sheet(isPresented: $showQuickActions) {
-            QuickActionsView(document: document, selection: $selection, isPresented: $showQuickActions)
+            QuickActionsView(document: document, selection: $selection, isPresented: $showQuickActions, undoManager: undoManager)
         }
     }
 }
