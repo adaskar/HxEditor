@@ -10,8 +10,8 @@ import SwiftUI
 @main
 struct HexEditorApp: App {
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        DocumentGroup(newDocument: { HexDocument() }) { configuration in
+            ContentView(document: configuration.document)
         }
     }
 }

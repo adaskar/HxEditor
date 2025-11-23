@@ -1,0 +1,505 @@
+import SwiftUI
+
+struct HexGridView: View {
+    @ObservedObject var document: HexDocument
+    @Binding var selection: Set<Int>
+    @Binding var isOverwriteMode: Bool
+    @Binding var hexInputMode: Bool
+    var byteGrouping: Int
+    @Environment(\.undoManager) var undoManager
+    @Environment(\.colorScheme) var colorScheme
+    
+    @StateObject private var hexInputHelper = HexInputHelper()
+    @StateObject private var bookmarkManager = BookmarkManager()
+    @State private var dragStart: Int?
+    @State private var focusedPane: FocusedPane = .hex
+    
+    enum FocusedPane {
+        case hex, ascii
+    }
+    
+    // Configuration
+    let bytesPerRow: Int = 16
+    let rowHeight: CGFloat = 20
+    let offsetWidth: CGFloat = 80
+    let offsetSpacing: CGFloat = 10
+    let hexCellWidth: CGFloat = 24
+    let hexCellSpacing: CGFloat = 4
+    let groupingSpacing: CGFloat = 4
+    let dividerWidth: CGFloat = 1
+    let asciiCellWidth: CGFloat = 10
+    
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Hex input mode indicator
+                if hexInputHelper.isHexInputMode {
+                    HStack {
+                        Image(systemName: "number.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Hex Input Mode")
+                            .font(.caption.bold())
+                            .foregroundColor(.green)
+                        if !hexInputHelper.partialHexInput.isEmpty {
+                            Text("Partial: \(hexInputHelper.partialHexInput)")
+                                .font(.caption.monospaced())
+                                .foregroundColor(.orange)
+                        }
+                        Spacer()
+                        Text("Press ⌘G to toggle")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    .background(Color.green.opacity(0.1))
+                }
+                
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        let totalBytes = document.buffer.count
+                        let totalRows = (totalBytes + bytesPerRow - 1) / bytesPerRow
+                        
+                        ForEach(0..<totalRows, id: \.self) { rowIndex in
+                            HStack(alignment: .center, spacing: 0) {
+                                // Offset
+                                Text(String(format: "%08X", rowIndex * bytesPerRow))
+                                    .font(.monospaced(.caption)())
+                                    .foregroundColor(ByteColorScheme.offsetColor)
+                                    .frame(width: offsetWidth, alignment: .leading)
+                                
+                                Spacer().frame(width: offsetSpacing)
+                                
+                                // Hex Bytes
+                                HStack(spacing: 0) {
+                                    ForEach(0..<bytesPerRow, id: \.self) { byteIndex in
+                                        let index = rowIndex * bytesPerRow + byteIndex
+                                        
+                                        // Add extra spacing for grouping
+                                        if byteIndex > 0 && byteIndex % byteGrouping == 0 {
+                                            Spacer().frame(width: groupingSpacing)
+                                        }
+                                        
+                                        if index < totalBytes {
+                                            let byte = document.buffer[index]
+                                            let isSelected = selection.contains(index)
+                                            let hasBookmark = bookmarkManager.hasBookmark(at: index)
+                                            
+                                            Text(String(format: "%02X", byte))
+                                                .font(.monospaced(.body)())
+                                                .foregroundColor(isSelected ? 
+                                                    ByteColorScheme.selectionTextColor : 
+                                                    ByteColorScheme.color(for: byte, colorScheme: colorScheme))
+                                                .frame(width: hexCellWidth, height: rowHeight, alignment: .center)
+                                                .background(
+                                                    ZStack {
+                                                        if isSelected {
+                                                            RoundedRectangle(cornerRadius: 4)
+                                                                .fill(ByteColorScheme.selectionColor)
+                                                        }
+                                                        if hasBookmark {
+                                                            RoundedRectangle(cornerRadius: 4)
+                                                                .stroke(Color.yellow, lineWidth: 2)
+                                                        }
+                                                    }
+                                                 )
+                                                 .contentShape(Rectangle())
+                                                 .contextMenu {
+                                                    Button(action: { toggleBookmark(at: index) }) {
+                                                        Label(hasBookmark ? "Remove Bookmark" : "Add Bookmark", 
+                                                              systemImage: hasBookmark ? "bookmark.slash" : "bookmark")
+                                                    }
+                                                 }
+                                        } else {
+                                            Text("  ")
+                                                .font(.monospaced(.body)())
+                                                .frame(width: hexCellWidth, height: rowHeight)
+                                        }
+                                        
+                                        if byteIndex < bytesPerRow - 1 {
+                                            Spacer().frame(width: hexCellSpacing)
+                                        }
+                                    }
+                                }
+                                
+                                Spacer().frame(width: 10)
+                                
+                                Divider()
+                                    .frame(height: 16)
+                                    .padding(.horizontal, 4)
+                                
+                                // ASCII
+                                HStack(spacing: 0) {
+                                    ForEach(0..<bytesPerRow, id: \.self) { byteIndex in
+                                        let index = rowIndex * bytesPerRow + byteIndex
+                                        if index < totalBytes {
+                                            let byte = document.buffer[index]
+                                            let char = (byte >= 32 && byte <= 126) ? String(UnicodeScalar(byte)) : "·"
+                                            let isSelected = selection.contains(index)
+                                            
+                                            Text(char)
+                                                .font(.monospaced(.body)())
+                                                .foregroundColor(isSelected ? 
+                                                    ByteColorScheme.selectionTextColor : 
+                                                    ByteColorScheme.color(for: byte, colorScheme: colorScheme))
+                                                .frame(width: asciiCellWidth, height: rowHeight, alignment: .center)
+                                                .background(isSelected ? ByteColorScheme.selectionColor : Color.clear)
+                                        } else {
+                                            Text(" ")
+                                                .font(.monospaced(.body)())
+                                                .frame(width: asciiCellWidth, height: rowHeight)
+                                        }
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .frame(height: rowHeight)
+                        }
+                    }
+                    .padding(16)
+                    .gesture(
+                        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                            .onChanged { value in
+                                handleDragGesture(value: value)
+                            }
+                            .onEnded { _ in
+                                finalizeDrag()
+                            }
+                    )
+                }
+            }
+            .focusable()
+            .onKeyPress { press in
+                handleKeyPress(press)
+            }
+        }
+    }
+    
+    
+    // Track if we're actively dragging
+    @State private var isDragging = false
+    
+    private func handleDragGesture(value: DragGesture.Value) {
+        let location = value.location
+        
+        // Calculate index from location
+        // We need to account for padding
+        let padding: CGFloat = 16
+        let relativeX = location.x - padding
+        let relativeY = location.y - padding
+        
+        guard relativeY >= 0 else { return }
+        
+        let rowIndex = Int(relativeY / rowHeight)
+        guard rowIndex >= 0 else { return }
+        
+        // Determine if we are in Hex or ASCII area
+        // Hex area start: offsetWidth + offsetSpacing
+        // Hex area end: offsetWidth + offsetSpacing + (bytesPerRow * (hexCellWidth + hexCellSpacing)) + (grouping spacers)
+        
+        let hexStartX = offsetWidth + offsetSpacing
+        
+        // Calculate hex width more accurately
+        // 16 bytes * 24 width = 384
+        // 15 spaces * 4 width = 60
+        // (16/grouping - 1) * 4 width = ...
+        
+        var currentX = hexStartX
+        var colIndex = -1
+        var isAscii = false
+        
+        // Check Hex Area
+        for i in 0..<bytesPerRow {
+            // Grouping spacer
+            if i > 0 && i % byteGrouping == 0 {
+                currentX += groupingSpacing
+            }
+            
+            if relativeX >= currentX && relativeX < currentX + hexCellWidth + hexCellSpacing {
+                colIndex = i
+                break
+            }
+            
+            currentX += hexCellWidth + hexCellSpacing
+        }
+        
+        // If not in hex, check ASCII
+        // ASCII starts after hex area + spacer + divider + padding
+        // Let's approximate or calculate exact start
+        // We can just check if x is far enough right
+        
+        if colIndex == -1 {
+            // Calculate where ASCII starts
+            // It's after the hex loop finishes
+            let asciiStartX = currentX + 10 + 4 + 4 // Spacer(10) + Divider padding(4+4?) + Divider(1) ... roughly
+            // Actually let's just use the loop end X
+            
+            if relativeX > currentX {
+                 // Check ASCII
+                 let asciiStart = currentX + 10 + 9 // Spacer(10) + Divider area
+                 if relativeX >= asciiStart {
+                     let asciiCol = Int((relativeX - asciiStart) / asciiCellWidth)
+                     if asciiCol >= 0 && asciiCol < bytesPerRow {
+                         colIndex = asciiCol
+                         isAscii = true
+                     }
+                 }
+            }
+        }
+        
+        // If we found a valid column
+        if colIndex != -1 {
+            let index = rowIndex * bytesPerRow + colIndex
+            if index < document.buffer.count {
+                
+                if !isDragging {
+                    // Start of drag
+                    isDragging = true
+                    dragStart = index
+                    selection = [index]
+                    focusedPane = isAscii ? .ascii : .hex
+                    hexInputHelper.clearPartialInput()
+                } else {
+                    // Continue drag
+                    if let start = dragStart {
+                        let range = min(start, index)...max(start, index)
+                        selection = Set(range)
+                        hexInputHelper.clearPartialInput()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func finalizeDrag() {
+        // When drag ends, if we didn't actually drag, it was just a tap
+        // The selection is already set, so just clean up
+        dragStart = nil
+        isDragging = false
+    }
+    
+    
+    private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
+        guard let index = selection.max() else { return .ignored }
+        
+        // Handle modifier commands first
+        if press.modifiers.contains(.command) {
+            switch press.key {
+            case "c":
+                copySelection()
+                return .handled
+            case "v":
+                pasteFromClipboard()
+                return .handled
+            case "0":
+                zeroSelection()
+                return .handled
+            case "g":
+                hexInputHelper.toggleMode()
+                hexInputMode = hexInputHelper.isHexInputMode
+                return .handled
+            case "b":
+                toggleBookmark(at: index)
+                return .handled
+            default:
+                break
+            }
+        }
+        
+        switch press.key {
+        case .delete: // Backspace
+            if selection.count > 1 {
+                let sortedIndices = selection.sorted(by: >)
+                performDelete(indices: sortedIndices)
+            } else {
+                if let singleIndex = selection.first, singleIndex > 0 {
+                    performDelete(indices: [singleIndex - 1])
+                    selection = [singleIndex - 1]
+                }
+            }
+            hexInputHelper.clearPartialInput()
+            return .handled
+            
+        case .deleteForward: // Delete
+            if !selection.isEmpty {
+                let sortedIndices = selection.sorted(by: >)
+                performDelete(indices: sortedIndices)
+                hexInputHelper.clearPartialInput()
+                return .handled
+            }
+            
+        case .leftArrow:
+            if index > 0 { selection = [index - 1] }
+            hexInputHelper.clearPartialInput()
+            return .handled
+            
+        case .rightArrow:
+            if index < document.buffer.count - 1 { selection = [index + 1] }
+            hexInputHelper.clearPartialInput()
+            return .handled
+            
+        case .upArrow:
+            if index >= bytesPerRow { selection = [index - bytesPerRow] }
+            hexInputHelper.clearPartialInput()
+            return .handled
+            
+        case .downArrow:
+            if index + bytesPerRow < document.buffer.count { selection = [index + bytesPerRow] }
+            hexInputHelper.clearPartialInput()
+            return .handled
+            
+        case .tab:
+            // Toggle between hex and ASCII pane
+            focusedPane = focusedPane == .hex ? .ascii : .hex
+            return .handled
+            
+        case .escape:
+            hexInputHelper.clearPartialInput()
+            return .handled
+            
+        default:
+            // Handle character input
+            if let char = press.characters.first {
+                if hexInputHelper.isHexInputMode {
+                    // Hex input mode
+                    if hexInputHelper.isValidHexChar(char) {
+                        if let byte = hexInputHelper.processHexCharacter(char) {
+                            // We have a complete hex byte
+                            if isOverwriteMode {
+                                performReplace(at: index, with: byte)
+                                selection = [min(index + 1, document.buffer.count - 1)]
+                            } else {
+                                performInsert(byte, at: index)
+                            }
+                        }
+                        return .handled
+                    }
+                } else {
+                    // ASCII input mode
+                    if char.isASCII {
+                        let byte = UInt8(char.asciiValue!)
+                        
+                        // Handle Backspace (127) explicitly if it wasn't caught by .delete
+                        if byte == 127 {
+                            if selection.count > 1 {
+                                let sortedIndices = selection.sorted(by: >)
+                                performDelete(indices: sortedIndices)
+                            } else {
+                                if let singleIndex = selection.first, singleIndex > 0 {
+                                    performDelete(indices: [singleIndex - 1])
+                                    selection = [singleIndex - 1]
+                                }
+                            }
+                            hexInputHelper.clearPartialInput()
+                            return .handled
+                        }
+                        
+                        // Ignore control characters (0-31)
+                        if byte >= 32 {
+                            if isOverwriteMode {
+                                performReplace(at: index, with: byte)
+                                selection = [min(index + 1, document.buffer.count - 1)]
+                            } else {
+                                performInsert(byte, at: index)
+                            }
+                            return .handled
+                        }
+                    }
+                }
+            }
+        }
+        
+        return .ignored
+    }
+    
+    private func toggleBookmark(at index: Int) {
+        if bookmarkManager.hasBookmark(at: index) {
+            bookmarkManager.removeBookmark(at: index)
+        } else {
+            bookmarkManager.addBookmark(offset: index, name: "Bookmark at 0x\(String(format: "%X", index))")
+        }
+    }
+    
+    private func zeroSelection() {
+        guard !selection.isEmpty else { return }
+        // Zero out all selected bytes
+        // We need to group this into one undo operation?
+        // UndoManager groups by event loop usually.
+        for index in selection {
+            performReplace(at: index, with: 0)
+        }
+    }
+    
+    private func performReplace(at index: Int, with byte: UInt8) {
+        let oldByte = document.buffer[index]
+        document.replace(at: index, with: byte)
+        
+        undoManager?.registerUndo(withTarget: document) { doc in
+            doc.replace(at: index, with: oldByte)
+            undoManager?.registerUndo(withTarget: doc) { doc in
+                self.performReplace(at: index, with: byte)
+            }
+        }
+    }
+    
+    private func copySelection() {
+        guard !selection.isEmpty else { return }
+        let sortedIndices = selection.sorted()
+        let bytes = sortedIndices.map { document.buffer[$0] }
+        let hexString = bytes.map { String(format: "%02X", $0) }.joined()
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(hexString, forType: .string)
+    }
+    
+    private func pasteFromClipboard() {
+        guard let index = selection.max() else { return }
+        let pasteboard = NSPasteboard.general
+        if let string = pasteboard.string(forType: .string) {
+            let cleaned = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let data = cleaned.data(using: .utf8) {
+                var currentIndex = index
+                // If selection is range, maybe replace?
+                // Standard paste inserts.
+                for byte in data {
+                    performInsert(byte, at: currentIndex)
+                    currentIndex += 1
+                }
+                selection = [currentIndex]
+            }
+        }
+    }
+    
+    private func performInsert(_ byte: UInt8, at index: Int) {
+        document.insert(byte, at: index)
+        selection = [index + 1]
+        
+        undoManager?.registerUndo(withTarget: document) { doc in
+            doc.delete(at: index)
+            undoManager?.registerUndo(withTarget: doc) { doc in
+                self.performInsert(byte, at: index)
+            }
+        }
+    }
+    
+    private func performDelete(indices: [Int]) {
+        // Indices must be sorted descending
+        for index in indices {
+            let byte = document.buffer[index]
+            document.delete(at: index)
+            
+            undoManager?.registerUndo(withTarget: document) { doc in
+                doc.insert(byte, at: index)
+                undoManager?.registerUndo(withTarget: doc) { doc in
+                    // We need to re-delete. But if we deleted multiple, this single undo only restores one.
+                    // To redo properly, we need to redo the whole group?
+                    // Or just redo this single delete.
+                    // Since we loop, we register multiple undos.
+                    // Redo will be registered by the undo closure.
+                    doc.delete(at: index)
+                }
+            }
+        }
+        selection = []
+    }
+}
