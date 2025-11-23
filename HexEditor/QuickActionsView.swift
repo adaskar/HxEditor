@@ -153,12 +153,7 @@ struct QuickActionsView: View {
         guard let byte = UInt8(fillByte, radix: 16) else { return }
         
         for index in selection {
-            let oldByte = document.buffer[index]
-            document.replace(at: index, with: byte)
-            
-            undoManager?.registerUndo(withTarget: document) { doc in
-                doc.replace(at: index, with: oldByte)
-            }
+            document.replace(at: index, with: byte, undoManager: undoManager)
         }
     }
     
@@ -171,13 +166,13 @@ struct QuickActionsView: View {
             guard let start = UInt8(startValue, radix: 16) else { return }
             for (i, index) in sorted.enumerated() {
                 let byte = UInt8((Int(start) + i) % 256)
-                document.replace(at: index, with: byte)
+                document.replace(at: index, with: byte, undoManager: undoManager)
             }
             
         case .random:
             for index in sorted {
                 let byte = UInt8.random(in: 0...255)
-                document.replace(at: index, with: byte)
+                document.replace(at: index, with: byte, undoManager: undoManager)
             }
             
         case .custom:
@@ -193,7 +188,7 @@ struct QuickActionsView: View {
         let reversed = bytes.reversed()
         
         for (index, byte) in zip(sorted, reversed) {
-            document.replace(at: index, with: byte)
+            document.replace(at: index, with: byte, undoManager: undoManager)
         }
     }
     
@@ -208,14 +203,14 @@ struct QuickActionsView: View {
             let byte1 = document.buffer[idx1]
             let byte2 = document.buffer[idx2]
             
-            document.replace(at: idx1, with: byte2)
-            document.replace(at: idx2, with: byte1)
+            document.replace(at: idx1, with: byte2, undoManager: undoManager)
+            document.replace(at: idx2, with: byte1, undoManager: undoManager)
         }
     }
     
     private func zeroSelection() {
         for index in selection {
-            document.replace(at: index, with: 0)
+            document.replace(at: index, with: 0, undoManager: undoManager)
         }
     }
     

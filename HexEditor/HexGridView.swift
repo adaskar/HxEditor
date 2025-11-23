@@ -698,15 +698,7 @@ struct HexGridView: View {
     }
     
     private func performReplace(at index: Int, with byte: UInt8) {
-        let oldByte = document.buffer[index]
-        document.replace(at: index, with: byte)
-        
-        undoManager?.registerUndo(withTarget: document) { doc in
-            doc.replace(at: index, with: oldByte)
-            undoManager?.registerUndo(withTarget: doc) { doc in
-                self.performReplace(at: index, with: byte)
-            }
-        }
+        document.replace(at: index, with: byte, undoManager: undoManager)
     }
     
     private func copySelection() {
@@ -738,40 +730,18 @@ struct HexGridView: View {
     }
     
     private func performInsert(_ byte: UInt8, at index: Int) {
-        document.insert(byte, at: index)
+        document.insert(byte, at: index, undoManager: undoManager)
         let newIndex = index + 1
         selection = [newIndex]
         cursorIndex = newIndex
         selectionAnchor = newIndex
-        
-        undoManager?.registerUndo(withTarget: document) { doc in
-            doc.delete(at: index)
-            undoManager?.registerUndo(withTarget: doc) { doc in
-                self.performInsert(byte, at: index)
-            }
-        }
     }
     
     private func performDelete(indices: [Int]) {
         // Indices must be sorted descending
         guard let firstIndex = indices.last else { return } // The smallest index
         
-        for index in indices {
-            let byte = document.buffer[index]
-            document.delete(at: index)
-            
-            undoManager?.registerUndo(withTarget: document) { doc in
-                doc.insert(byte, at: index)
-                undoManager?.registerUndo(withTarget: doc) { doc in
-                    // We need to re-delete. But if we deleted multiple, this single undo only restores one.
-                    // To redo properly, we need to redo the whole group?
-                    // Or just redo this single delete.
-                    // Since we loop, we register multiple undos.
-                    // Redo will be registered by the undo closure.
-                    doc.delete(at: index)
-                }
-            }
-        }
+        document.delete(indices: indices, undoManager: undoManager)
         
         // Select the point where deletion happened (smallest index)
         // Ensure we don't go out of bounds if we deleted the last byte

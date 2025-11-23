@@ -114,16 +114,7 @@ struct InsertDataView: View {
     private func performInsert() {
         guard let bytes = convertToBytes(), !bytes.isEmpty else { return }
         
-        var currentPosition = insertPosition
-        for byte in bytes {
-            document.insert(byte, at: currentPosition)
-            currentPosition += 1
-            
-            // Register undo (simplified - could be optimized for bulk operations)
-            undoManager?.registerUndo(withTarget: document) { doc in
-                doc.delete(at: currentPosition - 1)
-            }
-        }
+        document.insert(bytes: bytes, at: insertPosition, undoManager: undoManager)
         
         isPresented = false
     }
