@@ -99,7 +99,7 @@ struct ContentView: View {
                 }
                 .help("Jump to a specific offset (⌘J)")
 
-                Button(action: { showSearch = true }) {
+                Button(action: { showSearch.toggle() }) {
                     Label("Find", systemImage: "magnifyingglass")
                 }
                 .help("Search for data (⌘F)")
