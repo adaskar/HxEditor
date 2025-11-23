@@ -30,7 +30,7 @@ struct StatisticsView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     
                     // Histogram Section
@@ -63,7 +63,7 @@ struct StatisticsView: View {
                             .font(.caption.monospaced())
                             .foregroundColor(.secondary)
                         }
-                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     
                     // Summary
@@ -76,7 +76,7 @@ struct StatisticsView: View {
                             .font(.caption)
                             Spacer()
                         }
-                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
