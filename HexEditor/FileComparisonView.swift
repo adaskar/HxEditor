@@ -117,7 +117,8 @@ struct FileComparisonView: View {
                 }
             }
         }
-        .frame(minWidth: 900, minHeight: 600)
+        .frame(minWidth: 700, minHeight: 500)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: [.data],
@@ -187,8 +188,8 @@ struct FileComparisonView: View {
         }
         
         let targetByteIndex = sortedDiffIndices[currentDiffIndex]
-        // Calculate row index (assuming 16 bytes per row)
-        let rowIndex = targetByteIndex / 16
+        // Calculate row index (assuming 8 bytes per row now)
+        let rowIndex = targetByteIndex / 8
         scrollTarget = ScrollTarget(row: rowIndex)
     }
 }
@@ -201,7 +202,7 @@ struct ComparisonHexGrid: View {
     @Binding var scrollTarget: FileComparisonView.ScrollTarget?
     @State private var highlightedRow: Int?
     
-    let bytesPerRow = 16
+    let bytesPerRow = 8
     let rowHeight: CGFloat = 20
     
     var body: some View {
