@@ -426,14 +426,16 @@ struct HexGridView: View {
                     if hexInputHelper.isValidHexChar(char) {
                         if let byte = hexInputHelper.processHexCharacter(char) {
                             // We have a complete hex byte
-                            if isOverwriteMode {
-                                performReplace(at: currentCursor, with: byte)
-                                let nextIndex = min(currentCursor + 1, document.buffer.count - 1)
-                                selection = [nextIndex]
-                                cursorIndex = nextIndex
-                                selectionAnchor = nextIndex
-                            } else {
-                                performInsert(byte, at: currentCursor)
+                            DispatchQueue.main.async {
+                                if self.isOverwriteMode {
+                                    self.performReplace(at: currentCursor, with: byte)
+                                    let nextIndex = min(currentCursor + 1, self.document.buffer.count - 1)
+                                    self.selection = [nextIndex]
+                                    self.cursorIndex = nextIndex
+                                    self.selectionAnchor = nextIndex
+                                } else {
+                                    self.performInsert(byte, at: currentCursor)
+                                }
                             }
                         }
                         return .handled
@@ -445,28 +447,32 @@ struct HexGridView: View {
                         
                         // Handle Backspace (127) explicitly if it wasn't caught by .delete
                         if byte == 127 {
-                            if selection.count > 1 {
-                                let sortedIndices = selection.sorted(by: >)
-                                performDelete(indices: sortedIndices)
-                            } else {
-                                if let singleIndex = selection.first, singleIndex > 0 {
-                                    performDelete(indices: [singleIndex - 1])
+                            DispatchQueue.main.async {
+                                if self.selection.count > 1 {
+                                    let sortedIndices = self.selection.sorted(by: >)
+                                    self.performDelete(indices: sortedIndices)
+                                } else {
+                                    if let singleIndex = self.selection.first, singleIndex > 0 {
+                                        self.performDelete(indices: [singleIndex - 1])
+                                    }
                                 }
+                                self.hexInputHelper.clearPartialInput()
                             }
-                            hexInputHelper.clearPartialInput()
                             return .handled
                         }
                         
                         // Ignore control characters (0-31)
                         if byte >= 32 {
-                            if isOverwriteMode {
-                                performReplace(at: currentCursor, with: byte)
-                                let nextIndex = min(currentCursor + 1, document.buffer.count - 1)
-                                selection = [nextIndex]
-                                cursorIndex = nextIndex
-                                selectionAnchor = nextIndex
-                            } else {
-                                performInsert(byte, at: currentCursor)
+                            DispatchQueue.main.async {
+                                if self.isOverwriteMode {
+                                    self.performReplace(at: currentCursor, with: byte)
+                                    let nextIndex = min(currentCursor + 1, self.document.buffer.count - 1)
+                                    self.selection = [nextIndex]
+                                    self.cursorIndex = nextIndex
+                                    self.selectionAnchor = nextIndex
+                                } else {
+                                    self.performInsert(byte, at: currentCursor)
+                                }
                             }
                             return .handled
                         }
