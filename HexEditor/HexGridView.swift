@@ -18,6 +18,14 @@ struct HexGridView: View {
     @State private var showInsertDialog = false
     @State private var insertPosition = 0
     
+    // Arrow key press-and-hold support
+    @State private var arrowKeyTimer: Timer?
+    @State private var currentArrowDirection: ArrowDirection?
+    
+    enum ArrowDirection {
+        case up, down, left, right
+    }
+    
     enum FocusedPane {
         case hex, ascii
     }
@@ -354,8 +362,47 @@ struct HexGridView: View {
             }
             .focusable()
             .focusEffectDisabled()
-            .onKeyPress { press in
-                handleKeyPress(press)
+            .onKeyPress(phases: .all) { press in
+                // Suppress beep sound for arrow keys
+                let isArrowKey = [KeyEquivalent.leftArrow, .rightArrow, .upArrow, .downArrow].contains(press.key)
+                
+                // Handle arrow keys with press-and-hold support
+                if press.phase == .down {
+                    switch press.key {
+                    case .leftArrow:
+                        startArrowKeyRepeat(.left, withModifiers: press.modifiers)
+                        return .handled
+                    case .rightArrow:
+                        startArrowKeyRepeat(.right, withModifiers: press.modifiers)
+                        return .handled
+                    case .upArrow:
+                        startArrowKeyRepeat(.up, withModifiers: press.modifiers)
+                        return .handled
+                    case .downArrow:
+                        startArrowKeyRepeat(.down, withModifiers: press.modifiers)
+                        return .handled
+                    default:
+                        break
+                    }
+                } else if press.phase == .up {
+                    // Stop arrow key repeat on key release
+                    if isArrowKey {
+                        stopArrowKeyRepeat()
+                        return .handled
+                    }
+                } else if press.phase == .repeat {
+                    // Suppress repeat phase for arrow keys to prevent beep
+                    if isArrowKey {
+                        return .handled
+                    }
+                }
+                
+                // Handle other keys normally (only on press)
+                if press.phase == .down {
+                    return handleKeyPress(press)
+                }
+                
+                return .ignored
             }
         }
         .sheet(isPresented: $showInsertDialog) {
@@ -572,38 +619,6 @@ struct HexGridView: View {
                 return .handled
             }
             
-        case .leftArrow:
-            DispatchQueue.main.async {
-                if currentCursor > 0 {
-                    moveSelection(to: currentCursor - 1)
-                }
-            }
-            return .handled
-            
-        case .rightArrow:
-            DispatchQueue.main.async {
-                if currentCursor < self.document.buffer.count - 1 {
-                    moveSelection(to: currentCursor + 1)
-                }
-            }
-            return .handled
-            
-        case .upArrow:
-            DispatchQueue.main.async {
-                if currentCursor >= self.bytesPerRow {
-                    moveSelection(to: currentCursor - self.bytesPerRow)
-                }
-            }
-            return .handled
-            
-        case .downArrow:
-            DispatchQueue.main.async {
-                if currentCursor + self.bytesPerRow < self.document.buffer.count {
-                    moveSelection(to: currentCursor + self.bytesPerRow)
-                }
-            }
-            return .handled
-            
         case .tab:
             // Toggle between hex and ASCII pane
             focusedPane = focusedPane == .hex ? .ascii : .hex
@@ -735,6 +750,79 @@ struct HexGridView: View {
         selection = [newIndex]
         cursorIndex = newIndex
         selectionAnchor = newIndex
+    }
+    
+    // MARK: - Arrow Key Press-and-Hold Support
+    
+    private func startArrowKeyRepeat(_ direction: ArrowDirection, withModifiers modifiers: EventModifiers) {
+        // Stop any existing timer
+        stopArrowKeyRepeat()
+        
+        currentArrowDirection = direction
+        
+        // Execute immediately
+        performArrowKeyMove(direction, withModifiers: modifiers)
+        
+        // Start repeating timer (initial delay: 0.4s, repeat: 0.05s)
+        var initialDelay = true
+        arrowKeyTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            if initialDelay {
+                // Skip first few iterations for initial delay
+                initialDelay = false
+                return
+            }
+            
+            self.performArrowKeyMove(direction, withModifiers: modifiers)
+        }
+    }
+    
+    private func stopArrowKeyRepeat() {
+        arrowKeyTimer?.invalidate()
+        arrowKeyTimer = nil
+        currentArrowDirection = nil
+    }
+    
+    private func performArrowKeyMove(_ direction: ArrowDirection, withModifiers modifiers: EventModifiers) {
+        DispatchQueue.main.async {
+            let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0
+            
+            func moveSelection(to newIndex: Int) {
+                if modifiers.contains(.shift) {
+                    // Extend selection
+                    let anchor = self.selectionAnchor ?? currentCursor
+                    self.selectionAnchor = anchor
+                    self.cursorIndex = newIndex
+                    
+                    let range = min(anchor, newIndex)...max(anchor, newIndex)
+                    self.selection = Set(range)
+                } else {
+                    // Move selection
+                    self.selection = [newIndex]
+                    self.selectionAnchor = newIndex
+                    self.cursorIndex = newIndex
+                }
+                self.hexInputHelper.clearPartialInput()
+            }
+            
+            switch direction {
+            case .left:
+                if currentCursor > 0 {
+                    moveSelection(to: currentCursor - 1)
+                }
+            case .right:
+                if currentCursor < self.document.buffer.count - 1 {
+                    moveSelection(to: currentCursor + 1)
+                }
+            case .up:
+                if currentCursor >= self.bytesPerRow {
+                    moveSelection(to: currentCursor - self.bytesPerRow)
+                }
+            case .down:
+                if currentCursor + self.bytesPerRow < self.document.buffer.count {
+                    moveSelection(to: currentCursor + self.bytesPerRow)
+                }
+            }
+        }
     }
     
     private func performDelete(indices: [Int]) {
