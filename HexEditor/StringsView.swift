@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct StringsView: View {
     @ObservedObject var document: HexDocument
@@ -6,12 +7,14 @@ struct StringsView: View {
     @Binding var isPresented: Bool
     @Binding var cursorIndex: Int?
     @Binding var selectionAnchor: Int?
-    
+
     @State private var foundStrings: [FoundString] = []
     @State private var isScanning = false
     @State private var minLengthString = "4"
     @State private var showAscii = true
     @State private var showUnicode = true
+    @State private var selectedString: FoundString?
+    @State private var searchText = ""
     
     var body: some View {
         VStack(spacing: 0) {
@@ -27,22 +30,45 @@ struct StringsView: View {
                     TextField("4", text: $minLengthString)
                         .frame(width: 40)
                         .textFieldStyle(.roundedBorder)
-                    
+
                     Toggle("ASCII", isOn: $showAscii)
                     Toggle("Unicode", isOn: $showUnicode)
-                    
+
                     Button("Scan") {
                         scanStrings()
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isScanning)
+
+                    Button("Copy") {
+                        copySelectedString()
+                    }
+                    .disabled(selectedString == nil)
+                    .keyboardShortcut("c", modifiers: .command)
                 }
             }
             .padding()
             .background(Color(NSColor.controlBackgroundColor))
             
             Divider()
-            
+
+            HStack {
+                TextField("Search strings...", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+
+            Divider()
+
+            let filteredStrings = foundStrings.filter { searchText.isEmpty || $0.value.localizedCaseInsensitiveContains(searchText) }
+
             if isScanning {
                 VStack {
                     Spacer()
@@ -57,32 +83,36 @@ struct StringsView: View {
                     Spacer()
                 }
             } else {
-                List(foundStrings, id: \.id) { str in
+                List(filteredStrings, id: \.id) { str in
                     HStack {
-                        Text(String(format: "%08X", str.offset))
-                            .font(.monospaced(.caption)())
-                            .foregroundColor(.secondary)
-                            .frame(width: 70, alignment: .leading)
-                        
+                        Button(action: { jumpToOffset(str.offset) }) {
+                            Text(String(format: "%08X", str.offset))
+                                .font(.monospaced(.caption)())
+                                .foregroundColor(.secondary)
+                                .frame(width: 70, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+
                         Text(str.type.rawValue)
                             .font(.caption)
                             .padding(.horizontal, 4)
                             .background(Color.gray.opacity(0.2))
                             .cornerRadius(4)
-                        
+
                         Text(str.value)
                             .font(.monospaced(.body)())
                             .lineLimit(1)
                             .truncationMode(.tail)
-                        
+
                         Spacer()
-                        
+
                         Text("Len: \(str.value.count)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    .contentShape(Rectangle())
+                    .background(selectedString == str ? Color.accentColor.opacity(0.3) : Color.clear)
                     .onTapGesture {
+                        selectedString = str
                         selectString(str)
                     }
                 }
@@ -91,7 +121,7 @@ struct StringsView: View {
             Divider()
             
             HStack {
-                Text("\(foundStrings.count) strings found")
+                Text("Showing \(filteredStrings.count) of \(foundStrings.count) strings")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
@@ -131,5 +161,18 @@ struct StringsView: View {
         cursorIndex = str.offset
         selectionAnchor = str.offset
         // Close? Maybe keep open for browsing
+    }
+
+    private func copySelectedString() {
+        if let str = selectedString {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(str.value, forType: .string)
+        }
+    }
+
+    private func jumpToOffset(_ offset: Int) {
+        cursorIndex = offset
+        selectionAnchor = offset
+        selection = Set(offset..<(offset + 1))
     }
 }

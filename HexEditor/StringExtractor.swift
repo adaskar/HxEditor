@@ -1,6 +1,6 @@
 import Foundation
 
-struct FoundString: Identifiable, Equatable {
+struct FoundString: Identifiable, Equatable, Hashable {
     let id = UUID()
     let offset: Int
     let value: String

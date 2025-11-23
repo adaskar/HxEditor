@@ -425,6 +425,13 @@ struct HexGridView: View {
                 }
             }
         }
+        .onChange(of: cursorIndex) { _, newValue in
+            // Scroll to cursor position when it changes externally
+            if let cursor = newValue, let scrollProxy = scrollProxy {
+                let rowIndex = cursor / bytesPerRow
+                scrollProxy.scrollTo(rowIndex)
+            }
+        }
     }
     
     
