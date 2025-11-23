@@ -410,15 +410,19 @@ struct HexGridView: View {
         }
         .onChange(of: hexInputMode) { newValue in
             // Sync external binding to internal helper state
-            if hexInputHelper.isHexInputMode != newValue {
-                hexInputHelper.isHexInputMode = newValue
-                hexInputHelper.clearPartialInput()
+            Task { @MainActor in
+                if hexInputHelper.isHexInputMode != newValue {
+                    hexInputHelper.isHexInputMode = newValue
+                    hexInputHelper.clearPartialInput()
+                }
             }
         }
         .onChange(of: hexInputHelper.isHexInputMode) { newValue in
             // Sync internal helper state to external binding
-            if hexInputMode != newValue {
-                hexInputMode = newValue
+            Task { @MainActor in
+                if hexInputMode != newValue {
+                    hexInputMode = newValue
+                }
             }
         }
     }
@@ -643,9 +647,10 @@ struct HexGridView: View {
                 if hexInputHelper.isHexInputMode {
                     // Hex input mode
                     if hexInputHelper.isValidHexChar(char) {
-                        if let byte = hexInputHelper.processHexCharacter(char) {
-                            // We have a complete hex byte
-                            DispatchQueue.main.async {
+                        // Defer processing to avoid publishing changes during view updates
+                        DispatchQueue.main.async {
+                            if let byte = self.hexInputHelper.processHexCharacter(char) {
+                                // We have a complete hex byte
                                 if self.isOverwriteMode {
                                     self.performReplace(at: currentCursor, with: byte)
                                     let nextIndex = min(currentCursor + 1, self.document.buffer.count - 1)
