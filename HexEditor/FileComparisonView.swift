@@ -133,12 +133,36 @@ struct FileComparisonView: View {
                 print("Error loading file: \(error.localizedDescription)")
             }
         }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            guard let provider = providers.first else { return false }
+            
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                _ = provider.loadObject(ofClass: URL.self) { url, error in
+                    if let url = url {
+                        Task {
+                            await MainActor.run {
+                                loadComparisonFile(url: url)
+                            }
+                        }
+                    } else if let error = error {
+                        print("Drop failed: \(error.localizedDescription)")
+                    }
+                }
+                return true
+            }
+            return false
+        }
     }
     
     private func loadComparisonFile(url: URL) {
-        // Secure access
-        guard url.startAccessingSecurityScopedResource() else { return }
-        defer { url.stopAccessingSecurityScopedResource() }
+        // Try to access security scoped resource, but don't fail if it returns false
+        // (e.g. if it's a standard file URL that doesn't need it)
+        let isSecured = url.startAccessingSecurityScopedResource()
+        defer {
+            if isSecured {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
         
         do {
             let data = try Data(contentsOf: url)
@@ -146,7 +170,7 @@ struct FileComparisonView: View {
             self.comparisonDocument = doc
             performComparison()
         } catch {
-            print("Failed to load file data: \(error)")
+            print("Failed to load file data from \(url): \(error)")
         }
     }
     
