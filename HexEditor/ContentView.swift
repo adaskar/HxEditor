@@ -78,6 +78,19 @@ struct ContentView: View {
             .frame(height: 28)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .topTrailing) {
+            if showSearch {
+                SearchView(
+                    document: document,
+                    selection: $selection,
+                    isPresented: $showSearch,
+                    cursorIndex: $cursorIndex
+                )
+                .padding(.top, 20)
+                .padding(.trailing, 20)
+                .transition(.opacity)
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
                 // Navigation & Search
@@ -160,9 +173,6 @@ struct ContentView: View {
                 selectionAnchor: $selectionAnchor,
                 isPresented: $showJumpToOffset
             )
-        }
-        .sheet(isPresented: $showSearch) {
-            SearchView(document: document, selection: $selection, isPresented: $showSearch)
         }
         .sheet(isPresented: $showStrings) {
             StringsView(
