@@ -2,6 +2,22 @@
 
 A powerful, native macOS hex editor built with SwiftUI, featuring advanced editing capabilities, multiple byte selection, and an intuitive interface inspired by professional hex editors like HxD.
 
+## Screenshots
+
+### Main Interface
+![Main Interface](screenshots/main-interface.png)
+
+### Hex Input Mode
+![Hex Input Mode](screenshots/hex-input-mode.png)
+
+### Inspector Panel
+![Inspector Panel](screenshots/inspector-panel.png)
+
+### Insert Data Dialog
+![Insert Data Dialog](screenshots/insert-data-dialog.png)
+
+> **Note**: To add screenshots, create a `screenshots` folder in your repository and upload images through GitHub's web interface, then they will automatically display here.
+
 ## Features
 
 ### Editing Capabilities
