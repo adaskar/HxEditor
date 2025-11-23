@@ -10,7 +10,8 @@ struct FileComparisonView: View {
     @State private var isComparing = false
     @State private var showFileImporter = false
     
-    // Synchronized scrolling
+    @State private var sortedDiffIndices: [Int] = []
+    @State private var currentDiffIndex: Int = -1
     @State private var scrollTarget: Int?
     
     var body: some View {
@@ -23,8 +24,24 @@ struct FileComparisonView: View {
                 Spacer()
                 
                 if comparisonDocument != nil {
-                    Text("Comparing with: Loaded File")
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 12) {
+                        Text("\(sortedDiffIndices.count) Differences")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button(action: { navigateDiff(forward: false) }) {
+                            Image(systemName: "chevron.up")
+                        }
+                        .disabled(sortedDiffIndices.isEmpty)
+                        .help("Previous Difference")
+                        
+                        Button(action: { navigateDiff(forward: true) }) {
+                            Image(systemName: "chevron.down")
+                        }
+                        .disabled(sortedDiffIndices.isEmpty)
+                        .help("Next Difference")
+                    }
+                    .padding(.horizontal)
                     
                     Button("Re-Compare") {
                         performComparison()
@@ -133,11 +150,41 @@ struct FileComparisonView: View {
         
         Task {
             let result = await DiffEngine.compare(buffer1: document.buffer, buffer2: compDoc.buffer)
+            
+            // Sort indices for navigation
+            let allDiffs = result.differentIndices.union(result.onlyInFirst).union(result.onlyInSecond)
+            let sorted = allDiffs.sorted()
+            
             await MainActor.run {
                 self.diffResult = result
+                self.sortedDiffIndices = sorted
+                self.currentDiffIndex = -1
                 self.isComparing = false
             }
         }
+    }
+    
+    private func navigateDiff(forward: Bool) {
+        guard !sortedDiffIndices.isEmpty else { return }
+        
+        if forward {
+            if currentDiffIndex < sortedDiffIndices.count - 1 {
+                currentDiffIndex += 1
+            } else {
+                currentDiffIndex = 0 // Wrap around
+            }
+        } else {
+            if currentDiffIndex > 0 {
+                currentDiffIndex -= 1
+            } else {
+                currentDiffIndex = sortedDiffIndices.count - 1 // Wrap around
+            }
+        }
+        
+        let targetByteIndex = sortedDiffIndices[currentDiffIndex]
+        // Calculate row index (assuming 16 bytes per row)
+        let rowIndex = targetByteIndex / 16
+        scrollTarget = rowIndex
     }
 }
 
@@ -147,6 +194,7 @@ struct ComparisonHexGrid: View {
     var diffResult: DiffResult?
     var isOriginal: Bool
     @Binding var scrollTarget: Int?
+    @State private var highlightedRow: Int?
     
     let bytesPerRow = 16
     let rowHeight: CGFloat = 20
@@ -187,18 +235,25 @@ struct ComparisonHexGrid: View {
                                 }
                             }
                         }
+                        .background(highlightedRow == rowIndex ? Color.yellow.opacity(0.5) : Color.clear)
                         .id(rowIndex)
                     }
                 }
                 .padding()
             }
             .onChange(of: scrollTarget) { oldValue, newValue in
-                if newValue != nil {
-                    // Only scroll if we are not the one who initiated the scroll?
-                    // Synchronization is tricky. For now, let's just allow independent scrolling
-                    // or simple sync.
-                    // Implementing full sync scroll requires tracking scroll offset which is hard in SwiftUI.
-                    // We'll skip strict sync scroll for MVP and rely on manual navigation.
+                if let target = newValue {
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        proxy.scrollTo(target, anchor: .center)
+                    }
+                    
+                    // Flash highlight
+                    highlightedRow = target
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation {
+                            highlightedRow = nil
+                        }
+                    }
                 }
             }
         }
