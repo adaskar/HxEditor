@@ -229,5 +229,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView(document: HexDocument(readOnly: false))
+    ContentView(document: HexDocument())
 }

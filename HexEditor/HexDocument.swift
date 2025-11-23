@@ -8,9 +8,9 @@ final class HexDocument: ReferenceFileDocument {
     @Published var requestDuplicate = false
     @Published var filename: String?
 
-    init(initialData: Data = Data(), readOnly: Bool = true) {
+    init(initialData: Data = Data()) {
         self.buffer = GapBuffer(data: initialData)
-        self.readOnly = readOnly
+        self.readOnly = initialData.isEmpty ? false : true
     }
 
     static var readableContentTypes: [UTType] { [.item] }
