@@ -40,6 +40,7 @@ struct SearchView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
             }
             .padding(.bottom, 4)
             
