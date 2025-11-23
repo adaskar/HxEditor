@@ -408,6 +408,19 @@ struct HexGridView: View {
                 isPresented: $showInsertDialog
             )
         }
+        .onChange(of: hexInputMode) { newValue in
+            // Sync external binding to internal helper state
+            if hexInputHelper.isHexInputMode != newValue {
+                hexInputHelper.isHexInputMode = newValue
+                hexInputHelper.clearPartialInput()
+            }
+        }
+        .onChange(of: hexInputHelper.isHexInputMode) { newValue in
+            // Sync internal helper state to external binding
+            if hexInputMode != newValue {
+                hexInputMode = newValue
+            }
+        }
     }
     
     

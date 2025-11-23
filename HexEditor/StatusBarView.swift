@@ -75,22 +75,47 @@ struct StatusBarView: View {
                     .fill(isOverwriteMode ? Color.orange.opacity(0.1) : Color.blue.opacity(0.1))
             )
             
-            // Hex input mode indicator
-            if hexInputMode {
-                HStack(spacing: 4) {
-                    Image(systemName: "number")
-                        .font(.caption)
+            // Editing mode toggle (ASCII / HEX)
+            HStack(spacing: 0) {
+                Button(action: {
+                    hexInputMode = false
+                }) {
+                    Text("ASCII")
+                        .font(.caption.bold())
+                        .foregroundColor(hexInputMode ? .secondary : .white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(hexInputMode ? Color.clear : Color.blue)
+                        )
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    hexInputMode = true
+                }) {
                     Text("HEX")
                         .font(.caption.bold())
+                        .foregroundColor(hexInputMode ? .white : .secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                .fill(hexInputMode ? Color.green : Color.clear)
+                        )
                 }
-                .foregroundColor(.green)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.green.opacity(0.1))
-                )
+                .buttonStyle(.plain)
             }
+            .padding(2)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
