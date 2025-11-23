@@ -12,6 +12,7 @@ struct SearchView: View {
     @State private var searchMode: SearchMode = .text
     @State private var caseSensitive = false
     @State private var offset = CGSize.zero
+    @FocusState private var isFocused: Bool
     
     enum SearchMode: String, CaseIterable {
         case text = "Text"
@@ -46,6 +47,7 @@ struct SearchView: View {
             HStack(spacing: 8) {
                 TextField(searchMode == .hex ? "Hex Bytes" : "Search Text", text: $searchString)
                     .textFieldStyle(.roundedBorder)
+                    .focused($isFocused)
                     .onSubmit {
                         performSearch(direction: .forward)
                     }
@@ -119,6 +121,9 @@ struct SearchView: View {
                     offset = CGSize(width: value.translation.width, height: value.translation.height)
                 }
         )
+        .onAppear {
+            isFocused = true
+        }
     }
     
     private func performSearch(direction: SearchDirection) {
