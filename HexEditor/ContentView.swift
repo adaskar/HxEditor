@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var showInspector = false
     @State private var showStrings = false
     @State private var showBitmap = false
+    @State private var showFileComparison = false
     @State private var cursorIndex: Int? = nil
     @State private var selectionAnchor: Int? = nil
 
@@ -122,6 +123,11 @@ struct ContentView: View {
                 }
                 .help("Bitmap Visualizer")
                 
+                Button(action: { showFileComparison = true }) {
+                    Label("Compare", systemImage: "arrow.left.arrow.right.square")
+                }
+                .help("Compare with another file")
+                
                 Divider()
                 
                 // Inspector toggle
@@ -160,6 +166,9 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showBitmap) {
             BitmapView(document: document, isPresented: $showBitmap)
+        }
+        .sheet(isPresented: $showFileComparison) {
+            FileComparisonView(document: document, isPresented: $showFileComparison)
         }
         .sheet(isPresented: $showQuickActions) {
             QuickActionsView(document: document, selection: $selection, isPresented: $showQuickActions)
