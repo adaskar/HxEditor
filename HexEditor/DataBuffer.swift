@@ -2,6 +2,7 @@ import Foundation
 
 /// A Gap Buffer implementation for efficient editing of data.
 /// It maintains a "gap" in the storage to allow for O(1) insertions and deletions at the cursor position.
+/// OPTIMIZED: Added inline hints and batch access methods for performance
 struct GapBuffer: RandomAccessCollection {
     typealias Index = Int
     typealias Element = UInt8
@@ -25,6 +26,8 @@ struct GapBuffer: RandomAccessCollection {
     }
     
     /// Accesses the byte at the given index.
+    /// PERFORMANCE: Inlined for faster repeated access
+    @inline(__always)
     subscript(index: Int) -> UInt8 {
         get {
             let physicalIndex = index < gapStart ? index : index + (gapEnd - gapStart)
@@ -34,6 +37,22 @@ struct GapBuffer: RandomAccessCollection {
             let physicalIndex = index < gapStart ? index : index + (gapEnd - gapStart)
             buffer[physicalIndex] = newValue
         }
+    }
+    
+    /// PERFORMANCE: Batch access method for efficient row extraction
+    /// Reduces function call overhead when reading multiple consecutive bytes
+    @inline(__always)
+    func getBytes(in range: Range<Int>) -> [UInt8] {
+        var result = [UInt8]()
+        result.reserveCapacity(range.count)
+        
+        for index in range {
+            guard index < count else { break }
+            let physicalIndex = index < gapStart ? index : index + (gapEnd - gapStart)
+            result.append(buffer[physicalIndex])
+        }
+        
+        return result
     }
     
     /// Moves the gap to the specified index.
@@ -111,8 +130,10 @@ struct GapBuffer: RandomAccessCollection {
     }
     
     /// Returns the data as a contiguous Data object.
+    /// PERFORMANCE: Uses pre-allocated capacity
     func toData() -> Data {
         var data = Data()
+        data.reserveCapacity(count)
         data.append(contentsOf: buffer[0..<gapStart])
         data.append(contentsOf: buffer[gapEnd..<buffer.count])
         return data

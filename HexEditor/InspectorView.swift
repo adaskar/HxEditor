@@ -105,6 +105,8 @@ struct InspectorView: View {
         }
     }
     
+    // PERFORMANCE: Inline hint for frequently called method
+    @inline(__always)
     private func getValue<T: Numeric & CustomStringConvertible>(at index: Int, type: T.Type) -> String {
         let size = MemoryLayout<T>.size
         guard index + size <= document.buffer.count else { return "N/A" }
@@ -124,6 +126,8 @@ struct InspectorView: View {
         }
     }
     
+    // PERFORMANCE: Inline hint for frequently called method
+    @inline(__always)
     private func getBinaryString(at index: Int, bits: Int) -> String {
         let byteCount = bits / 8
         guard index + byteCount <= document.buffer.count else { return "N/A" }

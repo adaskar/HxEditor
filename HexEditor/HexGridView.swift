@@ -242,20 +242,16 @@ struct HexGridView: View {
             )
         }
         .onChange(of: hexInputMode) { _, newValue in
-            // Sync external binding to internal helper state
-            Task { @MainActor in
-                if hexInputHelper.isHexInputMode != newValue {
-                    hexInputHelper.isHexInputMode = newValue
-                    hexInputHelper.clearPartialInput()
-                }
+            // PERFORMANCE: Direct update - already on MainActor
+            if hexInputHelper.isHexInputMode != newValue {
+                hexInputHelper.isHexInputMode = newValue
+                hexInputHelper.clearPartialInput()
             }
         }
         .onChange(of: hexInputHelper.isHexInputMode) { _, newValue in
-            // Sync internal helper state to external binding
-            Task { @MainActor in
-                if hexInputMode != newValue {
-                    hexInputMode = newValue
-                }
+            // PERFORMANCE: Direct update - already on MainActor
+            if hexInputMode != newValue {
+                hexInputMode = newValue
             }
         }
         .onChange(of: cursorIndex) { _, newValue in

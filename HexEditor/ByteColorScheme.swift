@@ -2,57 +2,67 @@
 //  ByteColorScheme.swift
 //  HexEditor
 //
-//  Premium color scheme for different byte types
+//  Premium color scheme for different byte types - OPTIMIZED
+//  Pre-computed lookup tables eliminate runtime calculations
 //
 
 import SwiftUI
 
-enum ByteType {
-    case null           // 0x00
-    case controlChar    // 0x01-0x1F
-    case printableASCII // 0x20-0x7E
-    case deleteChar     // 0x7F
-    case extendedASCII  // 0x80-0xFF
-    
-    init(byte: UInt8) {
-        switch byte {
-        case 0x00:
-            self = .null
-        case 0x01...0x1F:
-            self = .controlChar
-        case 0x20...0x7E:
-            self = .printableASCII
-        case 0x7F:
-            self = .deleteChar
-        default:
-            self = .extendedASCII
-        }
-    }
-}
-
 struct ByteColorScheme {
-    // Light Mode Colors
-    static let lightModeColors: [ByteType: Color] = [
-        .null: Color.gray.opacity(0.4),
-        .controlChar: Color.orange.opacity(0.7),
-        .printableASCII: Color.primary,
-        .deleteChar: Color.red.opacity(0.6),
-        .extendedASCII: Color.purple.opacity(0.7)
-    ]
+    // PERFORMANCE: Pre-computed color arrays for all 256 byte values
+    // This eliminates ByteType enum creation and dictionary lookups on every render
     
-    // Dark Mode Colors
-    static let darkModeColors: [ByteType: Color] = [
-        .null: Color.gray.opacity(0.5),
-        .controlChar: Color.orange.opacity(0.8),
-        .printableASCII: Color.primary,
-        .deleteChar: Color.red.opacity(0.7),
-        .extendedASCII: Color.blue.opacity(0.8)
-    ]
+    private static let lightColorsArray: [Color] = {
+        var colors = [Color]()
+        colors.reserveCapacity(256)
+        
+        for byte in 0...255 {
+            let color: Color
+            switch byte {
+            case 0x00:
+                color = Color.gray.opacity(0.4)
+            case 0x01...0x1F:
+                color = Color.orange.opacity(0.7)
+            case 0x20...0x7E:
+                color = Color.primary
+            case 0x7F:
+                color = Color.red.opacity(0.6)
+            default:
+                color = Color.purple.opacity(0.7)
+            }
+            colors.append(color)
+        }
+        return colors
+    }()
     
+    private static let darkColorsArray: [Color] = {
+        var colors = [Color]()
+        colors.reserveCapacity(256)
+        
+        for byte in 0...255 {
+            let color: Color
+            switch byte {
+            case 0x00:
+                color = Color.gray.opacity(0.5)
+            case 0x01...0x1F:
+                color = Color.orange.opacity(0.8)
+            case 0x20...0x7E:
+                color = Color.primary
+            case 0x7F:
+                color = Color.red.opacity(0.7)
+            default:
+                color = Color.blue.opacity(0.8)
+            }
+            colors.append(color)
+        }
+        return colors
+    }()
+    
+    // PERFORMANCE: O(1) array access instead of enum init + dictionary lookup
+    @inline(__always)
     static func color(for byte: UInt8, colorScheme: ColorScheme) -> Color {
-        let byteType = ByteType(byte: byte)
-        let colors = colorScheme == .dark ? darkModeColors : lightModeColors
-        return colors[byteType] ?? .primary
+        let colors = colorScheme == .dark ? darkColorsArray : lightColorsArray
+        return colors[Int(byte)]
     }
     
     // Background colors for selection
