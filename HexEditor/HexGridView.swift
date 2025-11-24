@@ -23,7 +23,6 @@ struct HexGridView: View {
     // Arrow key support
 
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var visibleRows: Set<Int> = [] // PERFORMANCE: Track visible rows
     
     enum FocusedPane {
         case hex, ascii
@@ -132,8 +131,6 @@ struct HexGridView: View {
                                 )
 
                                 .id(rowIndex)
-                                .onAppear { visibleRows.insert(rowIndex) }
-                                .onDisappear { visibleRows.remove(rowIndex) }
                             }
                         }
                         .background(Color.clear) // Ensure it captures gestures
@@ -213,10 +210,7 @@ struct HexGridView: View {
 
             if let cursor = newValue, let scrollProxy = scrollProxy, !isInteracting {
                 let rowIndex = cursor / bytesPerRow
-                // PERFORMANCE: Only scroll if row is not visible
-                if !visibleRows.contains(rowIndex) {
-                    scrollProxy.scrollTo(rowIndex)
-                }
+                scrollProxy.scrollTo(rowIndex)
             }
         }
         .onChange(of: selection) { _, newValue in
