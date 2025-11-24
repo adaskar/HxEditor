@@ -415,7 +415,11 @@ struct HexGridView: View {
                 copySelectionAsHex()
                 return .handled
             case "v":
-                pasteFromClipboard()
+                if press.modifiers.contains(.shift) {
+                    pasteAsAscii()
+                } else {
+                    pasteAsHex()
+                }
                 return .handled
             case "0":
                 zeroSelection()
@@ -609,26 +613,58 @@ struct HexGridView: View {
         pasteboard.setString(asciiString, forType: .string)
     }
     
-    private func pasteFromClipboard() {
+    private func pasteBytes(_ bytes: [UInt8]) {
         guard let index = selection.max() else { return }
+        guard !bytes.isEmpty else { return }
+        
+        DispatchQueue.main.async {
+            if self.isOverwriteMode {
+                self.document.replace(bytes: bytes, at: index, undoManager: self.undoManager)
+            } else {
+                self.document.insert(bytes: bytes, at: index, undoManager: self.undoManager)
+            }
+            
+            let newIndex = index + bytes.count
+            self.selection = [newIndex]
+            self.cursorIndex = newIndex
+            self.selectionAnchor = newIndex
+        }
+    }
+    
+    private func pasteAsHex() {
         let pasteboard = NSPasteboard.general
         if let string = pasteboard.string(forType: .string) {
-            let cleaned = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let data = cleaned.data(using: .utf8) {
-                let bytes = [UInt8](data)
-                
-                DispatchQueue.main.async {
-                    if self.isOverwriteMode {
-                        self.document.replace(bytes: bytes, at: index, undoManager: self.undoManager)
-                    } else {
-                        self.document.insert(bytes: bytes, at: index, undoManager: self.undoManager)
+            // Filter for valid hex characters
+            let hexChars = string.uppercased().filter { "0123456789ABCDEF".contains($0) }
+            
+            // Must have even number of chars for valid hex bytes
+            // If odd, we can either drop the last one or prepend 0. Let's drop last one for now or just process pairs.
+            var bytes: [UInt8] = []
+            var currentIndex = hexChars.startIndex
+            
+            while currentIndex < hexChars.endIndex {
+                let nextIndex = hexChars.index(after: currentIndex)
+                if nextIndex < hexChars.endIndex {
+                    let pair = hexChars[currentIndex...nextIndex]
+                    if let byte = UInt8(pair, radix: 16) {
+                        bytes.append(byte)
                     }
-                    
-                    let newIndex = index + bytes.count
-                    self.selection = [newIndex]
-                    self.cursorIndex = newIndex
-                    self.selectionAnchor = newIndex
+                    currentIndex = hexChars.index(after: nextIndex)
+                } else {
+                    break
                 }
+            }
+            
+            pasteBytes(bytes)
+        }
+    }
+    
+    private func pasteAsAscii() {
+        let pasteboard = NSPasteboard.general
+        if let string = pasteboard.string(forType: .string) {
+            if let data = string.data(using: .utf8) {
+                let bytes = [UInt8](data)
+                pasteBytes(bytes)
             }
         }
     }
@@ -660,7 +696,7 @@ struct HexGridView: View {
             } else {
                 // Move selection
                 self.selection = [newIndex]
-                self.selectionAnchor = newIndex
+                selectionAnchor = newIndex
                 self.cursorIndex = newIndex
             }
             self.hexInputHelper.clearPartialInput()
@@ -735,18 +771,31 @@ struct HexGridView: View {
             Label("Copy ASCII", systemImage: "text.quote")
         }
         
-        // Paste operation
+        // Paste Hex operation
         Button(action: {
             if !selection.contains(index) {
                 selection = [index]
                 cursorIndex = index
                 selectionAnchor = index
             }
-            pasteFromClipboard()
+            pasteAsHex()
         }) {
-            Label("Paste", systemImage: "doc.on.clipboard")
+            Label("Paste Hex", systemImage: "doc.on.clipboard")
         }
         .keyboardShortcut("v", modifiers: .command)
+        
+        // Paste ASCII operation
+        Button(action: {
+            if !selection.contains(index) {
+                selection = [index]
+                cursorIndex = index
+                selectionAnchor = index
+            }
+            pasteAsAscii()
+        }) {
+            Label("Paste ASCII", systemImage: "doc.on.clipboard")
+        }
+        .keyboardShortcut("v", modifiers: [.command, .shift])
         
         // Insert operation
         Button(action: {
