@@ -5,6 +5,7 @@ struct ComparisonHexGridView: View {
     var diffResult: EnhancedDiffResult?
     var isLeftSide: Bool
     @Binding var scrollTarget: ComparisonContentView.ScrollTarget?
+    @Binding var currentVisibleOffset: Int
     var showOnlyDifferences: Bool
     var currentBlockIndex: Int
     
@@ -124,12 +125,7 @@ struct ComparisonHexGridView: View {
         let bytesToRead = min(bytesPerRow, remainingBytes)
         
         // Efficiently read bytes
-        // Note: GapBuffer.subscript is fast, but we could add a batch read method to GapBuffer for even better perf
-        var bytes = [UInt8]()
-        bytes.reserveCapacity(bytesToRead)
-        for i in 0..<bytesToRead {
-            bytes.append(document.buffer[offset + i])
-        }
+        let bytes = document.buffer.getBytes(in: offset..<offset + bytesToRead)
         
         let rowData = RowData(
             id: rowIndex,
@@ -204,6 +200,17 @@ struct ComparisonHexGridView: View {
         .padding(.horizontal, 4)
         .background(isHighlighted ? Color.yellow.opacity(0.4) : Color.clear)
         .id(rowData.id)
+        .onAppear {
+            // Update visible offset for manual scrolling tracking
+            // Use a smaller threshold to be more responsive
+            if rowData.id % 5 == 0 {
+                DispatchQueue.main.async {
+                    if abs(currentVisibleOffset - rowData.offset) > 100 {
+                        currentVisibleOffset = rowData.offset
+                    }
+                }
+            }
+        }
     }
     
     private func isRowHighlighted(rowData: RowData) -> Bool {

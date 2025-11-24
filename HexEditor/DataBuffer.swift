@@ -43,14 +43,35 @@ struct GapBuffer: RandomAccessCollection {
     /// Reduces function call overhead when reading multiple consecutive bytes
     @inline(__always)
     func getBytes(in range: Range<Int>) -> [UInt8] {
-        var result = [UInt8]()
-        result.reserveCapacity(range.count)
+        let start = range.lowerBound
+        let end = range.upperBound
+        let count = end - start
         
-        for index in range {
-            guard index < count else { break }
-            let physicalIndex = index < gapStart ? index : index + (gapEnd - gapStart)
-            result.append(buffer[physicalIndex])
+        if count <= 0 { return [] }
+        
+        // Case 1: Range is entirely before the gap
+        if end <= gapStart {
+            return Array(buffer[start..<end])
         }
+        
+        // Case 2: Range is entirely after the gap
+        if start >= gapStart {
+            let physicalStart = start + (gapEnd - gapStart)
+            let physicalEnd = end + (gapEnd - gapStart)
+            return Array(buffer[physicalStart..<physicalEnd])
+        }
+        
+        // Case 3: Range spans the gap
+        var result = [UInt8]()
+        result.reserveCapacity(count)
+        
+        // Part before gap
+        result.append(contentsOf: buffer[start..<gapStart])
+        
+        // Part after gap
+        let physicalGapEnd = gapEnd
+        let remaining = end - gapStart
+        result.append(contentsOf: buffer[physicalGapEnd..<physicalGapEnd + remaining])
         
         return result
     }

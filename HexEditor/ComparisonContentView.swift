@@ -10,6 +10,7 @@ struct ComparisonContentView: View {
     @State private var currentBlockIndex: Int = 0
     @State private var scrollTarget: ScrollTarget?
     @State private var showOnlyDifferences = false
+    @State private var currentVisibleOffset: Int = 0
     
     struct ScrollTarget: Equatable {
         let offset: Int
@@ -146,6 +147,7 @@ struct ComparisonContentView: View {
                             diffResult: diffResult,
                             isLeftSide: true,
                             scrollTarget: $scrollTarget,
+                            currentVisibleOffset: $currentVisibleOffset,
                             showOnlyDifferences: showOnlyDifferences,
                             currentBlockIndex: currentBlockIndex
                         )
@@ -165,6 +167,7 @@ struct ComparisonContentView: View {
                             diffResult: diffResult,
                             isLeftSide: false,
                             scrollTarget: $scrollTarget,
+                            currentVisibleOffset: $currentVisibleOffset,
                             showOnlyDifferences: showOnlyDifferences,
                             currentBlockIndex: currentBlockIndex
                         )
@@ -200,14 +203,33 @@ struct ComparisonContentView: View {
     private func navigateToNextDiff() {
         guard let diff = diffResult, !diff.blocks.isEmpty else { return }
         
-        currentBlockIndex = (currentBlockIndex + 1) % diff.blocks.count
+        // Find the first block that starts AFTER the current visible offset
+        // We add a small buffer (e.g. 16 bytes) to avoid jumping to the same block if we are just slightly before it
+        let searchOffset = currentVisibleOffset + 16
+        
+        if let nextIndex = diff.blocks.firstIndex(where: { $0.range.lowerBound > searchOffset }) {
+            currentBlockIndex = nextIndex
+        } else {
+            // Wrap around to start
+            currentBlockIndex = 0
+        }
+        
         jumpToBlock(at: currentBlockIndex)
     }
     
     private func navigateToPreviousDiff() {
         guard let diff = diffResult, !diff.blocks.isEmpty else { return }
         
-        currentBlockIndex = currentBlockIndex > 0 ? currentBlockIndex - 1 : diff.blocks.count - 1
+        // Find the last block that starts BEFORE the current visible offset
+        let searchOffset = currentVisibleOffset
+        
+        if let prevIndex = diff.blocks.lastIndex(where: { $0.range.lowerBound < searchOffset }) {
+            currentBlockIndex = prevIndex
+        } else {
+            // Wrap around to end
+            currentBlockIndex = diff.blocks.count - 1
+        }
+        
         jumpToBlock(at: currentBlockIndex)
     }
     
@@ -216,5 +238,7 @@ struct ComparisonContentView: View {
         
         let block = diff.blocks[index]
         scrollTarget = ScrollTarget(offset: block.range.lowerBound)
+        // Immediately update currentVisibleOffset so next navigation works correctly
+        currentVisibleOffset = block.range.lowerBound
     }
 }
