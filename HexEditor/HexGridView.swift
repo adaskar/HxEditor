@@ -345,10 +345,6 @@ struct HexGridView: View {
     
     
     private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
-        // Determine current cursor position
-        // If we have a tracked cursor, use it. Otherwise fallback to max of selection.
-        let initialCursor = cursorIndex ?? selection.max() ?? 0
-        
         // Handle modifier commands first
         if press.modifiers.contains(.command) {
             switch press.key {
@@ -455,7 +451,6 @@ struct HexGridView: View {
         switch press.key {
         case .delete: // Backspace
             DispatchQueue.main.async {
-                let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0 // Re-capture
                 if self.selection.count > 1 {
                     let sortedIndices = self.selection.sorted(by: >)
                     self.performDelete(indices: sortedIndices)
@@ -525,7 +520,6 @@ struct HexGridView: View {
                         // Handle Backspace (127) explicitly if it wasn't caught by .delete
                         if byte == 127 {
                             DispatchQueue.main.async {
-                                let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0 // Re-capture
                                 if self.selection.count > 1 {
                                     let sortedIndices = self.selection.sorted(by: >)
                                     self.performDelete(indices: sortedIndices)
