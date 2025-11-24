@@ -60,8 +60,8 @@ struct ComparisonHexGridView: View {
                         // Find the row index in cachedDiffRows
                         if let index = cachedDiffRows.firstIndex(where: { $0.offset <= target.offset && ($0.offset + bytesPerRow) > target.offset }) {
                             targetRow = index // This is actually the ID/index in the list
-                            
-                            withAnimation(.easeInOut(duration: 0.3)) {
+
+                            withAnimation(.easeInOut(duration: 0.2)) {
                                 proxy.scrollTo(cachedDiffRows[index].id, anchor: .center)
                             }
                         } else {
@@ -69,16 +69,18 @@ struct ComparisonHexGridView: View {
                         }
                     } else {
                         targetRow = target.offset / bytesPerRow
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
                             proxy.scrollTo(targetRow, anchor: .center)
                         }
                     }
-                    
-                    // Flash highlight
-                    highlightedOffset = target.offset
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            highlightedOffset = nil
+
+                    // Flash highlight after scrolling completes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        highlightedOffset = target.offset
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                highlightedOffset = nil
+                            }
                         }
                     }
                 }
