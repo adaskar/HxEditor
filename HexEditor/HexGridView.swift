@@ -347,7 +347,7 @@ struct HexGridView: View {
     private func handleKeyPress(_ press: KeyPress) -> KeyPress.Result {
         // Determine current cursor position
         // If we have a tracked cursor, use it. Otherwise fallback to max of selection.
-        let currentCursor = cursorIndex ?? selection.max() ?? 0
+        let initialCursor = cursorIndex ?? selection.max() ?? 0
         
         // Handle modifier commands first
         if press.modifiers.contains(.command) {
@@ -365,7 +365,9 @@ struct HexGridView: View {
                 copySelectionAsHex()
                 if !selection.isEmpty {
                     let sortedIndices = selection.sorted(by: >)
-                    performDelete(indices: sortedIndices)
+                    DispatchQueue.main.async {
+                        self.performDelete(indices: sortedIndices)
+                    }
                 }
                 return .handled
             case "d", "D":
@@ -374,10 +376,12 @@ struct HexGridView: View {
                     let sortedIndices = selection.sorted()
                     let bytes = sortedIndices.map { document.buffer[$0] }
                     if let lastIndex = sortedIndices.last {
-                        var currentIndex = lastIndex + 1
-                        for byte in bytes {
-                            performInsert(byte, at: currentIndex)
-                            currentIndex += 1
+                        DispatchQueue.main.async {
+                            var currentIndex = lastIndex + 1
+                            for byte in bytes {
+                                self.performInsert(byte, at: currentIndex)
+                                currentIndex += 1
+                            }
                         }
                     }
                 }
@@ -397,17 +401,26 @@ struct HexGridView: View {
                 }
                 return .handled
             case "0":
-                zeroSelection()
+                DispatchQueue.main.async {
+                    self.zeroSelection()
+                }
                 return .handled
             case "g", "G":
-                hexInputHelper.toggleMode()
-                hexInputMode = hexInputHelper.isHexInputMode
+                DispatchQueue.main.async {
+                    self.hexInputHelper.toggleMode()
+                    self.hexInputMode = self.hexInputHelper.isHexInputMode
+                }
                 return .handled
             case "b", "B":
-                toggleBookmark(at: currentCursor)
+                DispatchQueue.main.async {
+                    let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0 // Re-capture
+                    self.toggleBookmark(at: currentCursor)
+                }
                 return .handled
             case "f", "F":
-                showSearch = true
+                DispatchQueue.main.async {
+                    self.showSearch = true
+                }
                 return .handled
             case "z", "Z":
                 // Let system handle undo
@@ -419,51 +432,63 @@ struct HexGridView: View {
         
         // Helper to update selection based on movement
         func moveSelection(to newIndex: Int) {
-            if press.modifiers.contains(.shift) {
-                // Extend selection
-                let anchor = selectionAnchor ?? currentCursor
-                selectionAnchor = anchor // Ensure anchor is set
-                cursorIndex = newIndex
-                
-                let range = min(anchor, newIndex)...max(anchor, newIndex)
-                selection = Set(range)
-            } else {
-                // Move selection
-                selection = [newIndex]
-                selectionAnchor = newIndex
-                cursorIndex = newIndex
+            DispatchQueue.main.async {
+                let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0 // Re-capture
+                if press.modifiers.contains(.shift) {
+                    // Extend selection
+                    let anchor = self.selectionAnchor ?? currentCursor
+                    self.selectionAnchor = anchor // Ensure anchor is set
+                    self.cursorIndex = newIndex
+                    
+                    let range = min(anchor, newIndex)...max(anchor, newIndex)
+                    self.selection = Set(range)
+                } else {
+                    // Move selection
+                    self.selection = [newIndex]
+                    self.selectionAnchor = newIndex
+                    self.cursorIndex = newIndex
+                }
+                self.hexInputHelper.clearPartialInput()
             }
-            hexInputHelper.clearPartialInput()
         }
         
         switch press.key {
         case .delete: // Backspace
-            if selection.count > 1 {
-                let sortedIndices = selection.sorted(by: >)
-                performDelete(indices: sortedIndices)
-            } else {
-                if let singleIndex = selection.first, singleIndex > 0 {
-                    performDelete(indices: [singleIndex - 1])
+            DispatchQueue.main.async {
+                let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0 // Re-capture
+                if self.selection.count > 1 {
+                    let sortedIndices = self.selection.sorted(by: >)
+                    self.performDelete(indices: sortedIndices)
+                } else {
+                    if let singleIndex = self.selection.first, singleIndex > 0 {
+                        self.performDelete(indices: [singleIndex - 1])
+                    }
                 }
+                self.hexInputHelper.clearPartialInput()
             }
-            hexInputHelper.clearPartialInput()
             return .handled
             
         case .deleteForward: // Delete
             if !selection.isEmpty {
                 let sortedIndices = selection.sorted(by: >)
-                performDelete(indices: sortedIndices)
-                hexInputHelper.clearPartialInput()
+                DispatchQueue.main.async {
+                    self.performDelete(indices: sortedIndices)
+                    self.hexInputHelper.clearPartialInput()
+                }
                 return .handled
             }
             
         case .tab:
             // Toggle between hex and ASCII pane
-            focusedPane = focusedPane == .hex ? .ascii : .hex
+            DispatchQueue.main.async {
+                self.focusedPane = self.focusedPane == .hex ? .ascii : .hex
+            }
             return .handled
             
         case .escape:
-            hexInputHelper.clearPartialInput()
+            DispatchQueue.main.async {
+                self.hexInputHelper.clearPartialInput()
+            }
             return .handled
             
         default:
@@ -474,16 +499,19 @@ struct HexGridView: View {
                     if hexInputHelper.isValidHexChar(char) {
                         // Defer processing to avoid publishing changes during view updates
                         DispatchQueue.main.async {
+                            // Re-capture cursor to get the LATEST position after previous insertions
+                            let latestCursor = self.cursorIndex ?? self.selection.max() ?? 0
+                            
                             if let byte = self.hexInputHelper.processHexCharacter(char) {
                                 // We have a complete hex byte
                                 if self.isOverwriteMode {
-                                    self.performReplace(at: currentCursor, with: byte)
-                                    let nextIndex = min(currentCursor + 1, self.document.buffer.count - 1)
+                                    self.performReplace(at: latestCursor, with: byte)
+                                    let nextIndex = min(latestCursor + 1, self.document.buffer.count - 1)
                                     self.selection = [nextIndex]
                                     self.cursorIndex = nextIndex
                                     self.selectionAnchor = nextIndex
                                 } else {
-                                    self.performInsert(byte, at: currentCursor)
+                                    self.performInsert(byte, at: latestCursor)
                                 }
                             }
                         }
@@ -497,6 +525,7 @@ struct HexGridView: View {
                         // Handle Backspace (127) explicitly if it wasn't caught by .delete
                         if byte == 127 {
                             DispatchQueue.main.async {
+                                let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0 // Re-capture
                                 if self.selection.count > 1 {
                                     let sortedIndices = self.selection.sorted(by: >)
                                     self.performDelete(indices: sortedIndices)
@@ -515,8 +544,9 @@ struct HexGridView: View {
                             return .handled
                         }
                         
-                        // ASCII input
+                        // ASCII input - process synchronously
                         DispatchQueue.main.async {
+                            let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0 // Re-capture
                             if self.isOverwriteMode && currentCursor < self.document.buffer.count {
                                 // Overwrite mode: replace existing byte
                                 self.performReplace(at: currentCursor, with: byte)
@@ -549,12 +579,9 @@ struct HexGridView: View {
     private func zeroSelection() {
         guard !selection.isEmpty else { return }
         // Zero out all selected bytes
-        // We need to group this into one undo operation?
-        // UndoManager groups by event loop usually.
-        DispatchQueue.main.async {
-            for index in self.selection {
-                self.performReplace(at: index, with: 0)
-            }
+        // UndoManager groups by event loop usually for undo operations.
+        for index in self.selection {
+            self.performReplace(at: index, with: 0)
         }
     }
     
@@ -710,16 +737,14 @@ struct HexGridView: View {
         // Indices must be sorted descending
         guard let firstIndex = indices.last else { return } // The smallest index
         
-        DispatchQueue.main.async {
-            self.document.delete(indices: indices, undoManager: self.undoManager)
-            
-            // Select the point where deletion happened (smallest index)
-            // Ensure we don't go out of bounds if we deleted the last byte
-            let newCursor = min(firstIndex, self.document.buffer.count)
-            self.selection = [newCursor]
-            self.cursorIndex = newCursor
-            self.selectionAnchor = newCursor
-        }
+        self.document.delete(indices: indices, undoManager: self.undoManager)
+        
+        // Select the point where deletion happened (smallest index)
+        // Ensure we don't go out of bounds if we deleted the last byte
+        let newCursor = min(firstIndex, self.document.buffer.count)
+        self.selection = [newCursor]
+        self.cursorIndex = newCursor
+        self.selectionAnchor = newCursor
     }
 }
 
