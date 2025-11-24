@@ -776,6 +776,7 @@ struct HexGridView: View {
         }) {
             Label("Copy ASCII", systemImage: "text.quote")
         }
+        .keyboardShortcut("c", modifiers: [.command, .shift])
         
         // Paste Hex operation
         Button(action: {
