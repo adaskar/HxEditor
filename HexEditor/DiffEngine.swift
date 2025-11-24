@@ -47,47 +47,32 @@ class DiffEngine {
         
         let count1 = buffer1.count
         let count2 = buffer2.count
-        let minCount = min(count1, count2)
         
-        var differences = Set<Int>()
-        var onlyInFirst = Set<Int>()
-        var onlyInSecond = Set<Int>()
+        // Use Myers Diff Algorithm
+        // Note: For very large files with many differences, this can be slow.
+        // We might want to add a size limit or optimization later.
+        let ops = await myersDiff(old: buffer1, new: buffer2)
         
-        // Compare overlapping region
-        for i in 0..<minCount {
-            if buffer1[i] != buffer2[i] {
-                differences.insert(i)
-            }
-            
-            // Yield occasionally to keep UI responsive
-            if i % 10000 == 0 {
-                await Task.yield()
-            }
-        }
-        
-        // Handle size differences
-        if count1 > count2 {
-            for i in count2..<count1 {
-                onlyInFirst.insert(i)
-            }
-        } else if count2 > count1 {
-            for i in count1..<count2 {
-                onlyInSecond.insert(i)
-            }
-        }
-        
-        // Convert to blocks
-        let blocks = await createDiffBlocks(
-            differences: differences,
-            onlyInFirst: onlyInFirst,
-            onlyInSecond: onlyInSecond
-        )
+        // Convert operations to blocks
+        let blocks = createDiffBlocks(from: ops)
         
         // Calculate statistics
-        let totalDiffs = differences.count + onlyInFirst.count + onlyInSecond.count
+        var inserts = 0
+        var deletes = 0
+        var keeps = 0
+        
+        for op in ops {
+            switch op {
+            case .insert: inserts += 1
+            case .delete: deletes += 1
+            case .keep: keeps += 1
+            }
+        }
+        
+        let totalDiffs = inserts + deletes
         let bytesChanged = totalDiffs
         let largerSize = max(count1, count2)
-        let matchPercentage = largerSize > 0 ? Double(largerSize - totalDiffs) / Double(largerSize) * 100.0 : 100.0
+        let matchPercentage = largerSize > 0 ? Double(keeps) / Double(largerSize) * 100.0 : 100.0
         
         return EnhancedDiffResult(
             blocks: blocks,
@@ -99,55 +84,172 @@ class DiffEngine {
         )
     }
     
-    /// Create contiguous diff blocks from individual byte differences
-    private static func createDiffBlocks(
-        differences: Set<Int>,
-        onlyInFirst: Set<Int>,
-        onlyInSecond: Set<Int>
-    ) async -> [DiffBlock] {
-        await Task.yield()
-        
-        var blocks: [DiffBlock] = []
-        
-        // Process modified bytes
-        blocks.append(contentsOf: createBlocksFromSet(differences, type: .modified))
-        
-        // Process bytes only in first file
-        blocks.append(contentsOf: createBlocksFromSet(onlyInFirst, type: .onlyInFirst))
-        
-        // Process bytes only in second file
-        blocks.append(contentsOf: createBlocksFromSet(onlyInSecond, type: .onlyInSecond))
-        
-        // Sort by range start
-        blocks.sort { $0.range.lowerBound < $1.range.lowerBound }
-        
-        return blocks
+    // MARK: - Myers Diff Implementation
+    
+    private enum DiffOperation {
+        case insert(Int) // Index in new
+        case delete(Int) // Index in old
+        case keep(Int)   // Index in old
     }
     
-    /// Convert a set of indices into contiguous blocks
-    private static func createBlocksFromSet(_ indices: Set<Int>, type: DiffBlock.DiffType) -> [DiffBlock] {
-        guard !indices.isEmpty else { return [] }
+    private static func myersDiff(old: GapBuffer, new: GapBuffer) async -> [DiffOperation] {
+        let n = old.count
+        let m = new.count
+        let max = n + m
         
-        let sorted = indices.sorted()
-        var blocks: [DiffBlock] = []
-        var currentStart = sorted[0]
-        var currentEnd = sorted[0]
-        
-        for i in 1..<sorted.count {
-            let index = sorted[i]
-            if index == currentEnd + 1 {
-                // Contiguous, extend current block
-                currentEnd = index
-            } else {
-                // Gap found, save current block and start new one
-                blocks.append(DiffBlock(range: currentStart...currentEnd, type: type))
-                currentStart = index
-                currentEnd = index
+        // Optimization: If files are identical, return early
+        if n == m {
+            var identical = true
+            for i in 0..<n {
+                if i % 10000 == 0 { await Task.yield() }
+                if old[i] != new[i] {
+                    identical = false
+                    break
+                }
+            }
+            if identical {
+                return (0..<n).map { .keep($0) }
             }
         }
         
-        // Add the last block
-        blocks.append(DiffBlock(range: currentStart...currentEnd, type: type))
+        var v = Array(repeating: 0, count: 2 * max + 1)
+        var trace: [[Int]] = []
+        
+        // Run the Myers algorithm
+        for d in 0...max {
+            // Yield occasionally to keep UI responsive
+            if d % 100 == 0 { await Task.yield() }
+            
+            var vCopy = v
+            trace.append(vCopy)
+            
+            for k in stride(from: -d, through: d, by: 2) {
+                var x: Int
+                if k == -d || (k != d && v[max + k - 1] < v[max + k + 1]) {
+                    x = v[max + k + 1]
+                } else {
+                    x = v[max + k - 1] + 1
+                }
+                
+                var y = x - k
+                
+                while x < n && y < m && old[x] == new[y] {
+                    x += 1
+                    y += 1
+                }
+                
+                v[max + k] = x
+                
+                if x >= n && y >= m {
+                    // Found solution, backtrack
+                    return backtrack(trace: trace, old: old, new: new)
+                }
+            }
+        }
+        return []
+    }
+    
+    private static func backtrack(trace: [[Int]], old: GapBuffer, new: GapBuffer) -> [DiffOperation] {
+        var ops: [DiffOperation] = []
+        let n = old.count
+        let m = new.count
+        let max = n + m
+        
+        var x = n
+        var y = m
+        
+        for d in stride(from: trace.count - 1, through: 0, by: -1) {
+            let v = trace[d]
+            let k = x - y
+            
+            let prevK: Int
+            if k == -d || (k != d && v[max + k - 1] < v[max + k + 1]) {
+                prevK = k + 1
+            } else {
+                prevK = k - 1
+            }
+            
+            let prevX = v[max + prevK]
+            let prevY = prevX - prevK
+            
+            while x > prevX && y > prevY {
+                ops.append(.keep(x - 1))
+                x -= 1
+                y -= 1
+            }
+            
+            if d > 0 {
+                if x == prevX {
+                    ops.append(.insert(y - 1))
+                    y -= 1
+                } else {
+                    ops.append(.delete(x - 1))
+                    x -= 1
+                }
+            }
+        }
+        
+        return ops.reversed()
+    }
+    
+    /// Convert diff operations into contiguous blocks
+    private static func createDiffBlocks(from ops: [DiffOperation]) -> [DiffBlock] {
+        var blocks: [DiffBlock] = []
+        
+        // We need to group consecutive operations of the same type
+        // Note: 'keep' operations are ignored for blocks (they are matches)
+        
+        var currentType: DiffBlock.DiffType? = nil
+        var startRange: Int? = nil
+        var endRange: Int? = nil
+        
+        for op in ops {
+            switch op {
+            case .insert(let index):
+                if currentType == .onlyInSecond {
+                    // Extend current block
+                    endRange = index
+                } else {
+                    // Close previous block if any
+                    if let type = currentType, let start = startRange, let end = endRange {
+                        blocks.append(DiffBlock(range: start...end, type: type))
+                    }
+                    // Start new block
+                    currentType = .onlyInSecond
+                    startRange = index
+                    endRange = index
+                }
+                
+            case .delete(let index):
+                if currentType == .onlyInFirst {
+                    // Extend current block
+                    endRange = index
+                } else {
+                    // Close previous block if any
+                    if let type = currentType, let start = startRange, let end = endRange {
+                        blocks.append(DiffBlock(range: start...end, type: type))
+                    }
+                    // Start new block
+                    currentType = .onlyInFirst
+                    startRange = index
+                    endRange = index
+                }
+                
+            case .keep:
+                // Close previous block if any
+                if let type = currentType, let start = startRange, let end = endRange {
+                    blocks.append(DiffBlock(range: start...end, type: type))
+                }
+                currentType = nil
+                startRange = nil
+                endRange = nil
+            }
+        }
+        
+        // Close final block
+        if let type = currentType, let start = startRange, let end = endRange {
+            blocks.append(DiffBlock(range: start...end, type: type))
+        }
         
         return blocks
     }
