@@ -56,9 +56,8 @@ final class HexDocument: ReferenceFileDocument {
             requestDuplicate = true
             return
         }
-        for (i, byte) in bytes.enumerated() {
-            buffer.insert(byte, at: index + i)
-        }
+        
+        buffer.insert(bytes, at: index)
 
         undoManager?.registerUndo(withTarget: self) { doc in
             doc.delete(indices: Array(index..<(index + bytes.count)), undoManager: undoManager)
@@ -113,6 +112,50 @@ final class HexDocument: ReferenceFileDocument {
 
         undoManager?.registerUndo(withTarget: self) { doc in
             doc.replace(at: index, with: oldByte, undoManager: undoManager)
+        }
+    }
+    
+    func replace(bytes: [UInt8], at index: Int, undoManager: UndoManager? = nil) {
+        if readOnly {
+            requestDuplicate = true
+            return
+        }
+        
+        let replaceCount = min(bytes.count, buffer.count - index)
+        let insertCount = bytes.count - replaceCount
+        
+        // Capture old bytes for undo
+        var oldBytes: [UInt8] = []
+        for i in 0..<replaceCount {
+            oldBytes.append(buffer[index + i])
+        }
+        
+        // Perform updates
+        for i in 0..<replaceCount {
+            buffer[index + i] = bytes[i]
+        }
+        
+        if insertCount > 0 {
+            let bytesToInsert = Array(bytes[replaceCount...])
+            buffer.insert(bytesToInsert, at: index + replaceCount)
+        }
+        
+        undoManager?.registerUndo(withTarget: self) { doc in
+            // Group the undo operations so Redo is also one step
+            undoManager?.beginUndoGrouping()
+            
+            // Undo: Delete inserted, Restore replaced
+            if insertCount > 0 {
+                let start = index + replaceCount
+                let end = start + insertCount
+                doc.delete(indices: Array(start..<end), undoManager: undoManager)
+            }
+            
+            if replaceCount > 0 {
+                doc.replace(bytes: oldBytes, at: index, undoManager: undoManager)
+            }
+            
+            undoManager?.endUndoGrouping()
         }
     }
 }

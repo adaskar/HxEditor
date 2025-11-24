@@ -215,7 +215,7 @@ struct SearchView: View {
         
         // Linear search
         for i in effectiveStart..<(count - searchCount + 1) {
-            if await checkMatch(at: i, buffer: buffer, searchBytes: searchBytes, shouldLowercase: shouldLowercase) {
+            if checkMatch(at: i, buffer: buffer, searchBytes: searchBytes, shouldLowercase: shouldLowercase) {
                 return i
             }
             
@@ -243,7 +243,7 @@ struct SearchView: View {
         
         // Linear search backward
         for i in stride(from: effectiveStart, through: 0, by: -1) {
-            if await checkMatch(at: i, buffer: buffer, searchBytes: searchBytes, shouldLowercase: shouldLowercase) {
+            if checkMatch(at: i, buffer: buffer, searchBytes: searchBytes, shouldLowercase: shouldLowercase) {
                 return i
             }
             
@@ -256,7 +256,7 @@ struct SearchView: View {
         return nil
     }
     
-    private func checkMatch(at index: Int, buffer: GapBuffer, searchBytes: [UInt8], shouldLowercase: Bool) async -> Bool {
+    private func checkMatch(at index: Int, buffer: GapBuffer, searchBytes: [UInt8], shouldLowercase: Bool) -> Bool {
         for j in 0..<searchBytes.count {
             let bufferByte = buffer[index + j]
             let searchByte = searchBytes[j]

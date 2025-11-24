@@ -20,14 +20,8 @@ struct HexGridView: View {
     @State private var insertPosition = 0
     @FocusState private var isFocused: Bool
     
-    // Arrow key press-and-hold support
-    @State private var arrowKeyTimer: Timer?
-    @State private var currentArrowDirection: ArrowDirection?
+    // Arrow key support
     @State private var scrollProxy: ScrollViewProxy?
-    
-    enum ArrowDirection {
-        case up, down, left, right
-    }
     
     enum FocusedPane {
         case hex, ascii
@@ -140,91 +134,7 @@ struct HexGridView: View {
                                                  )
                                                  .contentShape(Rectangle())
                                                  .contextMenu {
-                                                     // Copy Hex operation
-                                                     Button(action: {
-                                                         if !selection.contains(index) {
-                                                             selection = [index]
-                                                             cursorIndex = index
-                                                             selectionAnchor = index
-                                                         }
-                                                         copySelectionAsHex()
-                                                     }) {
-                                                         Label("Copy Hex", systemImage: "doc.on.doc")
-                                                     }
-                                                     .keyboardShortcut("c", modifiers: .command)
-
-                                                     // Copy ASCII operation
-                                                     Button(action: {
-                                                         if !selection.contains(index) {
-                                                             selection = [index]
-                                                             cursorIndex = index
-                                                             selectionAnchor = index
-                                                         }
-                                                         copySelectionAsAscii()
-                                                     }) {
-                                                         Label("Copy ASCII", systemImage: "text.quote")
-                                                     }
-                                                    
-                                                    // Paste operation
-                                                    Button(action: {
-                                                        if !selection.contains(index) {
-                                                            selection = [index]
-                                                            cursorIndex = index
-                                                            selectionAnchor = index
-                                                        }
-                                                        pasteFromClipboard()
-                                                    }) {
-                                                        Label("Paste", systemImage: "doc.on.clipboard")
-                                                    }
-                                                    .keyboardShortcut("v", modifiers: .command)
-                                                    
-                                                    // Insert operation
-                                                    Button(action: {
-                                                        insertPosition = index
-                                                        showInsertDialog = true
-                                                    }) {
-                                                        Label("Insert...", systemImage: "plus.square")
-                                                    }
-                                                    .keyboardShortcut("i", modifiers: .command)
-                                                    
-                                                    Divider()
-                                                    
-                                                    // Delete operation
-                                                    Button(action: {
-                                                        if !selection.contains(index) {
-                                                            selection = [index]
-                                                            cursorIndex = index
-                                                            selectionAnchor = index
-                                                        }
-                                                        if !selection.isEmpty {
-                                                            let sortedIndices = selection.sorted(by: >)
-                                                            performDelete(indices: sortedIndices)
-                                                        }
-                                                    }) {
-                                                        Label("Delete", systemImage: "trash")
-                                                    }
-                                                    
-                                                    // Zero out operation
-                                                    Button(action: {
-                                                        if !selection.contains(index) {
-                                                            selection = [index]
-                                                            cursorIndex = index
-                                                            selectionAnchor = index
-                                                        }
-                                                        zeroSelection()
-                                                    }) {
-                                                        Label("Zero Out", systemImage: "0.circle")
-                                                    }
-                                                    .keyboardShortcut("0", modifiers: .command)
-                                                    
-                                                    Divider()
-                                                    
-                                                    // Bookmark operation
-                                                    Button(action: { toggleBookmark(at: index) }) {
-                                                        Label(hasBookmark ? "Remove Bookmark" : "Add Bookmark", 
-                                                              systemImage: hasBookmark ? "bookmark.slash" : "bookmark")
-                                                    }
-                                                    .keyboardShortcut("b", modifiers: .command)
+                                                     contextMenuContent(for: index)
                                                  }
                                         } else {
                                             Text("  ")
@@ -262,92 +172,7 @@ struct HexGridView: View {
                                                 .background(isSelected ? ByteColorScheme.selectionColor : Color.clear)
                                                 .contentShape(Rectangle())
                                                 .contextMenu {
-                                                   // Copy Hex operation
-                                                   Button(action: {
-                                                       if !selection.contains(index) {
-                                                           selection = [index]
-                                                           cursorIndex = index
-                                                           selectionAnchor = index
-                                                       }
-                                                       copySelectionAsHex()
-                                                   }) {
-                                                       Label("Copy Hex", systemImage: "doc.on.doc")
-                                                   }
-                                                   .keyboardShortcut("c", modifiers: .command)
-
-                                                   // Copy ASCII operation
-                                                   Button(action: {
-                                                       if !selection.contains(index) {
-                                                           selection = [index]
-                                                           cursorIndex = index
-                                                           selectionAnchor = index
-                                                       }
-                                                       copySelectionAsAscii()
-                                                   }) {
-                                                       Label("Copy ASCII", systemImage: "text.quote")
-                                                   }
-                                                    
-                                                    // Paste operation
-                                                    Button(action: {
-                                                        if !selection.contains(index) {
-                                                            selection = [index]
-                                                            cursorIndex = index
-                                                            selectionAnchor = index
-                                                        }
-                                                        pasteFromClipboard()
-                                                    }) {
-                                                        Label("Paste", systemImage: "doc.on.clipboard")
-                                                    }
-                                                    .keyboardShortcut("v", modifiers: .command)
-                                                    
-                                                    // Insert operation
-                                                    Button(action: {
-                                                        insertPosition = index
-                                                        showInsertDialog = true
-                                                    }) {
-                                                        Label("Insert...", systemImage: "plus.square")
-                                                    }
-                                                    .keyboardShortcut("i", modifiers: .command)
-                                                    
-                                                    Divider()
-                                                    
-                                                    // Delete operation
-                                                    Button(action: {
-                                                        if !selection.contains(index) {
-                                                            selection = [index]
-                                                            cursorIndex = index
-                                                            selectionAnchor = index
-                                                        }
-                                                        if !selection.isEmpty {
-                                                            let sortedIndices = selection.sorted(by: >)
-                                                            performDelete(indices: sortedIndices)
-                                                        }
-                                                    }) {
-                                                        Label("Delete", systemImage: "trash")
-                                                    }
-                                                    
-                                                    // Zero out operation
-                                                    Button(action: {
-                                                        if !selection.contains(index) {
-                                                            selection = [index]
-                                                            cursorIndex = index
-                                                            selectionAnchor = index
-                                                        }
-                                                        zeroSelection()
-                                                    }) {
-                                                        Label("Zero Out", systemImage: "0.circle")
-                                                    }
-                                                    .keyboardShortcut("0", modifiers: .command)
-                                                    
-                                                    Divider()
-                                                    
-                                                    // Bookmark operation
-                                                    Button(action: { toggleBookmark(at: index) }) {
-                                                        let hasBookmark = bookmarkManager.hasBookmark(at: index)
-                                                        Label(hasBookmark ? "Remove Bookmark" : "Add Bookmark", 
-                                                              systemImage: hasBookmark ? "bookmark.slash" : "bookmark")
-                                                    }
-                                                    .keyboardShortcut("b", modifiers: .command)
+                                                    contextMenuContent(for: index)
                                                 }
                                         } else {
                                             Text(" ")
@@ -385,47 +210,27 @@ struct HexGridView: View {
             }
             .focusable()
             .focusEffectDisabled()
-            .onKeyPress(phases: .all) { press in
-                // Suppress beep sound for arrow keys
-                let isArrowKey = [KeyEquivalent.leftArrow, .rightArrow, .upArrow, .downArrow].contains(press.key)
-                
-                // Handle arrow keys with press-and-hold support
-                if press.phase == .down {
-                    switch press.key {
-                    case .leftArrow:
-                        startArrowKeyRepeat(.left, withModifiers: press.modifiers)
-                        return .handled
-                    case .rightArrow:
-                        startArrowKeyRepeat(.right, withModifiers: press.modifiers)
-                        return .handled
-                    case .upArrow:
-                        startArrowKeyRepeat(.up, withModifiers: press.modifiers)
-                        return .handled
-                    case .downArrow:
-                        startArrowKeyRepeat(.down, withModifiers: press.modifiers)
-                        return .handled
-                    default:
-                        break
-                    }
-                } else if press.phase == .up {
-                    // Stop arrow key repeat on key release
-                    if isArrowKey {
-                        stopArrowKeyRepeat()
-                        return .handled
-                    }
-                } else if press.phase == .repeat {
-                    // Suppress repeat phase for arrow keys to prevent beep
-                    if isArrowKey {
-                        return .handled
-                    }
+            .onKeyPress(phases: [.down, .repeat]) { press in
+                // Handle arrow keys
+                switch press.key {
+                case .leftArrow:
+                    performArrowKeyMove(.left, withModifiers: press.modifiers)
+                    return .handled
+                case .rightArrow:
+                    performArrowKeyMove(.right, withModifiers: press.modifiers)
+                    return .handled
+                case .upArrow:
+                    performArrowKeyMove(.up, withModifiers: press.modifiers)
+                    return .handled
+                case .downArrow:
+                    performArrowKeyMove(.down, withModifiers: press.modifiers)
+                    return .handled
+                default:
+                    break
                 }
                 
-                // Handle other keys normally (only on press)
-                if press.phase == .down {
-                    return handleKeyPress(press)
-                }
-                
-                return .ignored
+                // Handle other keys
+                return handleKeyPress(press)
             }
         }
         .focused($isFocused)
@@ -767,8 +572,10 @@ struct HexGridView: View {
         // Zero out all selected bytes
         // We need to group this into one undo operation?
         // UndoManager groups by event loop usually.
-        for index in selection {
-            performReplace(at: index, with: 0)
+        DispatchQueue.main.async {
+            for index in self.selection {
+                self.performReplace(at: index, with: 0)
+            }
         }
     }
     
@@ -808,14 +615,20 @@ struct HexGridView: View {
         if let string = pasteboard.string(forType: .string) {
             let cleaned = string.trimmingCharacters(in: .whitespacesAndNewlines)
             if let data = cleaned.data(using: .utf8) {
-                var currentIndex = index
-                // If selection is range, maybe replace?
-                // Standard paste inserts.
-                for byte in data {
-                    performInsert(byte, at: currentIndex)
-                    currentIndex += 1
+                let bytes = [UInt8](data)
+                
+                DispatchQueue.main.async {
+                    if self.isOverwriteMode {
+                        self.document.replace(bytes: bytes, at: index, undoManager: self.undoManager)
+                    } else {
+                        self.document.insert(bytes: bytes, at: index, undoManager: self.undoManager)
+                    }
+                    
+                    let newIndex = index + bytes.count
+                    self.selection = [newIndex]
+                    self.cursorIndex = newIndex
+                    self.selectionAnchor = newIndex
                 }
-                selection = [currentIndex]
             }
         }
     }
@@ -828,82 +641,54 @@ struct HexGridView: View {
         selectionAnchor = newIndex
     }
     
-    // MARK: - Arrow Key Press-and-Hold Support
-    
-    private func startArrowKeyRepeat(_ direction: ArrowDirection, withModifiers modifiers: EventModifiers) {
-        // Stop any existing timer
-        stopArrowKeyRepeat()
-        
-        currentArrowDirection = direction
-        
-        // Execute immediately
-        performArrowKeyMove(direction, withModifiers: modifiers)
-        
-        // Start repeating timer (initial delay: 0.4s, repeat: 0.05s)
-        var initialDelay = true
-        arrowKeyTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-            if initialDelay {
-                // Skip first few iterations for initial delay
-                initialDelay = false
-                return
-            }
-            
-            self.performArrowKeyMove(direction, withModifiers: modifiers)
-        }
-    }
-    
-    private func stopArrowKeyRepeat() {
-        arrowKeyTimer?.invalidate()
-        arrowKeyTimer = nil
-        currentArrowDirection = nil
+    private enum ArrowDirection {
+        case up, down, left, right
     }
     
     private func performArrowKeyMove(_ direction: ArrowDirection, withModifiers modifiers: EventModifiers) {
-        DispatchQueue.main.async {
-            let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0
-            
-            func moveSelection(to newIndex: Int) {
-                if modifiers.contains(.shift) {
-                    // Extend selection
-                    let anchor = self.selectionAnchor ?? currentCursor
-                    self.selectionAnchor = anchor
-                    self.cursorIndex = newIndex
-                    
-                    let range = min(anchor, newIndex)...max(anchor, newIndex)
-                    self.selection = Set(range)
-                } else {
-                    // Move selection
-                    self.selection = [newIndex]
-                    self.selectionAnchor = newIndex
-                    self.cursorIndex = newIndex
-                }
-                self.hexInputHelper.clearPartialInput()
+        let currentCursor = self.cursorIndex ?? self.selection.max() ?? 0
+        
+        func moveSelection(to newIndex: Int) {
+            if modifiers.contains(.shift) {
+                // Extend selection
+                let anchor = self.selectionAnchor ?? currentCursor
+                self.selectionAnchor = anchor
+                self.cursorIndex = newIndex
+                
+                let range = min(anchor, newIndex)...max(anchor, newIndex)
+                self.selection = Set(range)
+            } else {
+                // Move selection
+                self.selection = [newIndex]
+                self.selectionAnchor = newIndex
+                self.cursorIndex = newIndex
             }
-            
-            switch direction {
-            case .left:
-                if currentCursor > 0 {
-                    moveSelection(to: currentCursor - 1)
-                }
-            case .right:
-                if currentCursor < self.document.buffer.count {
-                    moveSelection(to: currentCursor + 1)
-                }
-            case .up:
-                if currentCursor >= self.bytesPerRow {
-                    moveSelection(to: currentCursor - self.bytesPerRow)
-                }
-            case .down:
-                if currentCursor + self.bytesPerRow < self.document.buffer.count {
-                    moveSelection(to: currentCursor + self.bytesPerRow)
-                }
+            self.hexInputHelper.clearPartialInput()
+        }
+        
+        switch direction {
+        case .left:
+            if currentCursor > 0 {
+                moveSelection(to: currentCursor - 1)
             }
-            
-            // Smart scroll: only scroll to keep cursor visible
-            if let scrollProxy = self.scrollProxy, let cursor = self.cursorIndex {
-                let rowIndex = cursor / self.bytesPerRow
-                scrollProxy.scrollTo(rowIndex)
+        case .right:
+            if currentCursor < self.document.buffer.count {
+                moveSelection(to: currentCursor + 1)
             }
+        case .up:
+            if currentCursor >= self.bytesPerRow {
+                moveSelection(to: currentCursor - self.bytesPerRow)
+            }
+        case .down:
+            if currentCursor + self.bytesPerRow < self.document.buffer.count {
+                moveSelection(to: currentCursor + self.bytesPerRow)
+            }
+        }
+        
+        // Smart scroll: only scroll to keep cursor visible
+        if let scrollProxy = self.scrollProxy, let cursor = self.cursorIndex {
+            let rowIndex = cursor / self.bytesPerRow
+            scrollProxy.scrollTo(rowIndex)
         }
     }
     
@@ -911,13 +696,105 @@ struct HexGridView: View {
         // Indices must be sorted descending
         guard let firstIndex = indices.last else { return } // The smallest index
         
-        document.delete(indices: indices, undoManager: undoManager)
+        DispatchQueue.main.async {
+            self.document.delete(indices: indices, undoManager: self.undoManager)
+            
+            // Select the point where deletion happened (smallest index)
+            // Ensure we don't go out of bounds if we deleted the last byte
+            let newCursor = min(firstIndex, self.document.buffer.count)
+            self.selection = [newCursor]
+            self.cursorIndex = newCursor
+            self.selectionAnchor = newCursor
+        }
+    }
+
+    @ViewBuilder
+    private func contextMenuContent(for index: Int) -> some View {
+        // Copy Hex operation
+        Button(action: {
+            if !selection.contains(index) {
+                selection = [index]
+                cursorIndex = index
+                selectionAnchor = index
+            }
+            copySelectionAsHex()
+        }) {
+            Label("Copy Hex", systemImage: "doc.on.doc")
+        }
+        .keyboardShortcut("c", modifiers: .command)
+
+        // Copy ASCII operation
+        Button(action: {
+            if !selection.contains(index) {
+                selection = [index]
+                cursorIndex = index
+                selectionAnchor = index
+            }
+            copySelectionAsAscii()
+        }) {
+            Label("Copy ASCII", systemImage: "text.quote")
+        }
         
-        // Select the point where deletion happened (smallest index)
-        // Ensure we don't go out of bounds if we deleted the last byte
-        let newCursor = min(firstIndex, document.buffer.count)
-        selection = [newCursor]
-        cursorIndex = newCursor
-        selectionAnchor = newCursor
+        // Paste operation
+        Button(action: {
+            if !selection.contains(index) {
+                selection = [index]
+                cursorIndex = index
+                selectionAnchor = index
+            }
+            pasteFromClipboard()
+        }) {
+            Label("Paste", systemImage: "doc.on.clipboard")
+        }
+        .keyboardShortcut("v", modifiers: .command)
+        
+        // Insert operation
+        Button(action: {
+            insertPosition = index
+            showInsertDialog = true
+        }) {
+            Label("Insert...", systemImage: "plus.square")
+        }
+        .keyboardShortcut("i", modifiers: .command)
+        
+        Divider()
+        
+        // Delete operation
+        Button(action: {
+            if !selection.contains(index) {
+                selection = [index]
+                cursorIndex = index
+                selectionAnchor = index
+            }
+            if !selection.isEmpty {
+                let sortedIndices = selection.sorted(by: >)
+                performDelete(indices: sortedIndices)
+            }
+        }) {
+            Label("Delete", systemImage: "trash")
+        }
+        
+        // Zero out operation
+        Button(action: {
+            if !selection.contains(index) {
+                selection = [index]
+                cursorIndex = index
+                selectionAnchor = index
+            }
+            zeroSelection()
+        }) {
+            Label("Zero Out", systemImage: "0.circle")
+        }
+        .keyboardShortcut("0", modifiers: .command)
+        
+        Divider()
+        
+        // Bookmark operation
+        Button(action: { toggleBookmark(at: index) }) {
+            let hasBookmark = bookmarkManager.hasBookmark(at: index)
+            Label(hasBookmark ? "Remove Bookmark" : "Add Bookmark", 
+                  systemImage: hasBookmark ? "bookmark.slash" : "bookmark")
+        }
+        .keyboardShortcut("b", modifiers: .command)
     }
 }
