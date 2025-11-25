@@ -537,6 +537,7 @@ class HexTextView: NSView {
         self.currentSelection = selection
         self.currentAnchor = anchor
         self.currentCursor = cursor
+        scrollToCursor()
         needsDisplay = true
     }
     
