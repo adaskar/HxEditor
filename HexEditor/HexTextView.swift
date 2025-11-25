@@ -144,13 +144,34 @@ class HexTextView: NSView {
         
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor.textColor
+            .foregroundColor: NSColor.labelColor
+        ]
+        
+        let addressAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular),
+            .foregroundColor: NSColor.secondaryLabelColor
         ]
         
         // Calculate dynamic layout positions
         let addressWidth = 10 * charWidth
         let hexByteWidth = 3 * charWidth
         let hexSectionStartX = addressWidth + 10
+        
+        // Draw Separator Line (Address | Hex)
+        context.setStrokeColor(NSColor.separatorColor.withAlphaComponent(0.4).cgColor)
+        context.setLineWidth(1.0)
+        let sepX = addressWidth + 5
+        context.move(to: CGPoint(x: sepX, y: dirtyRect.minY))
+        context.addLine(to: CGPoint(x: sepX, y: dirtyRect.maxY))
+        context.strokePath()
+        
+        let asciiStartX = hexSectionStartX + (CGFloat(bytesPerRow) * hexByteWidth) + (CGFloat(bytesPerRow / byteGrouping) * charWidth) + 20
+        
+        // Draw Separator Line (Hex | ASCII)
+        let asciiSepX = asciiStartX - 10
+        context.move(to: CGPoint(x: asciiSepX, y: dirtyRect.minY))
+        context.addLine(to: CGPoint(x: asciiSepX, y: dirtyRect.maxY))
+        context.strokePath()
         
         // Draw visible lines
         for line in firstLine...lastLine {
@@ -161,7 +182,7 @@ class HexTextView: NSView {
             
             // Draw Address
             let addressString = String(format: "%08X", byteIndex) as NSString
-            addressString.draw(at: NSPoint(x: 5, y: y), withAttributes: attributes)
+            addressString.draw(at: NSPoint(x: 5, y: y), withAttributes: addressAttributes)
             
             // Draw Hex and ASCII
             for i in 0..<bytesPerRow {
@@ -175,7 +196,6 @@ class HexTextView: NSView {
                 let hexX = hexSectionStartX + CGFloat(i) * hexByteWidth + CGFloat(groupCount) * charWidth
                 
                 // Calculate ASCII Position
-                let asciiStartX = hexSectionStartX + (CGFloat(bytesPerRow) * hexByteWidth) + (CGFloat(bytesPerRow / byteGrouping) * charWidth) + 20
                 let asciiX = asciiStartX + CGFloat(i) * charWidth
                 
                 // Selection Highlight
