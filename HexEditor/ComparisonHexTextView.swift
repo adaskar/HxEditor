@@ -45,14 +45,6 @@ class ComparisonHexTextView: NSView {
     }
     private var visibleRows: [VisibleRow] = []
     
-    // Highlight Animation
-    private var highlightedOffset: Int?
-    @objc dynamic var highlightOpacity: CGFloat = 0.0 {
-        didSet {
-            needsDisplay = true
-        }
-    }
-    
     // MARK: - Initialization
     
     override init(frame frameRect: NSRect) {
@@ -257,17 +249,6 @@ class ComparisonHexTextView: NSView {
                 (char as NSString).draw(at: NSPoint(x: asciiX, y: y), withAttributes: coloredAttrs)
             }
         }
-        
-        // Draw Highlight Overlay (drawn LAST to be on top)
-        if let highlightOffset = highlightedOffset, highlightOpacity > 0 {
-            if let y = yPosition(for: highlightOffset) {
-                // Use higher opacity and draw a rounded rect
-                NSColor.systemYellow.withAlphaComponent(highlightOpacity * 0.8).setFill()
-                let highlightRect = NSRect(x: 10, y: y + 1, width: bounds.width - 20, height: lineHeight - 2)
-                let path = NSBezierPath(roundedRect: highlightRect, xRadius: 4.0, yRadius: 4.0)
-                path.fill()
-            }
-        }
     }
     
     private func getByteColors(at offset: Int) -> (NSColor, NSColor) {
@@ -401,19 +382,6 @@ class ComparisonHexTextView: NSView {
             let offset = line * bytesPerRow
             guard let document = hexDocument, offset < document.buffer.count else { return nil }
             return offset
-        }
-    }
-    
-    func flashHighlight(at offset: Int) {
-        self.highlightedOffset = offset
-        self.highlightOpacity = 1.0
-        
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.6
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            self.animator().highlightOpacity = 0.0
-        } completionHandler: {
-            self.highlightedOffset = nil
         }
     }
     

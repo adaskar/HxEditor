@@ -75,11 +75,6 @@ struct ComparisonHexGridView: NSViewRepresentable {
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 scrollView.contentView.animator().setBoundsOrigin(newOrigin)
                 scrollView.reflectScrolledClipView(scrollView.contentView)
-            } completionHandler: {
-                // Ensure highlight is triggered on main thread with slight delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    textView.flashHighlight(at: offset)
-                }
             }
         }
     }
