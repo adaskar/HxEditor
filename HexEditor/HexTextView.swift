@@ -252,7 +252,7 @@ class HexTextView: NSView {
                 } else {
                     char = "."
                 }
-                (char as NSString).draw(at: NSPoint(x: asciiX, y: y), withAttributes: attributes)
+                (char as NSString).draw(at: NSPoint(x: asciiX, y: y), withAttributes: coloredAttrs)
             }
         }
     }
