@@ -5,6 +5,7 @@ struct SearchView: View {
     @Binding var selection: Set<Int>
     @Binding var isPresented: Bool
     @Binding var cursorIndex: Int?
+    @Binding var selectionAnchor: Int?
     
     @State private var searchString: String = ""
     @State private var isSearching = false
@@ -187,8 +188,9 @@ struct SearchView: View {
                     // Select all matched bytes
                     let range = index..<(index + bytes.count)
                     selection = Set(range)
-                    // Update cursor to ensure visibility
-                    cursorIndex = index
+                    // Update cursor to end of selection for L-to-R feel
+                    cursorIndex = index + bytes.count - 1
+                    selectionAnchor = index
                     isSearching = false
                 }
             } else {

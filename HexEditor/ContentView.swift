@@ -102,7 +102,8 @@ struct ContentView: View {
                         document: document,
                         selection: $selection,
                         isPresented: $showSearch,
-                        cursorIndex: $cursorIndex
+                        cursorIndex: $cursorIndex,
+                        selectionAnchor: $selectionAnchor
                     )
                 }
                 .padding(.top, 20)

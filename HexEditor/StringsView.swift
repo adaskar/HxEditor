@@ -159,7 +159,7 @@ struct StringsView: View {
     private func selectString(_ str: FoundString) {
         let range = str.offset..<(str.offset + str.length)
         selection = Set(range)
-        cursorIndex = str.offset
+        cursorIndex = str.offset + str.length - 1
         selectionAnchor = str.offset
         // Close? Maybe keep open for browsing
     }
