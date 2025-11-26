@@ -284,6 +284,30 @@ class HexTextView: NSView {
                 (char as NSString).draw(at: NSPoint(x: asciiX, y: y), withAttributes: coloredAttrs)
             }
         }
+        
+        // Draw cursor if it's at EOF (one past the last byte)
+        if let cursor = currentCursor, cursor == buffer.count, buffer.count > 0 {
+            let line = cursor / bytesPerRow
+            if line >= firstLine && line <= lastLine {
+                let i = cursor % bytesPerRow
+                let y = CGFloat(line) * lineHeight
+                
+                // Calculate positions
+                let groupCount = i / byteGrouping
+                let hexX = hexSectionStartX + CGFloat(i) * hexByteWidth + CGFloat(groupCount) * charWidth
+                let asciiX = asciiStartX + CGFloat(i) * charWidth
+                
+                // Draw Hex Cursor
+                context.setStrokeColor(NSColor.textColor.cgColor)
+                context.setLineWidth(1.0)
+                let hexRect = NSRect(x: hexX - 2.0, y: y, width: (2.0 * charWidth) + 4.0, height: lineHeight)
+                context.stroke(hexRect)
+                
+                // Draw ASCII Cursor
+                let asciiRect = NSRect(x: asciiX, y: y, width: charWidth, height: lineHeight)
+                context.stroke(asciiRect)
+            }
+        }
     }
     
     private func updateColorCache() {
@@ -348,7 +372,8 @@ class HexTextView: NSView {
                 let hexX = CGFloat(i) * hexByteWidth + CGFloat(groupCount) * charWidth
                 if relativeX >= hexX && relativeX < hexX + hexByteWidth {
                     let index = line * bytesPerRow + i
-                    return index < (hexDocument?.buffer.count ?? 0) ? index : nil
+                    // Allow selecting EOF position (one past the end)
+                    return index <= (hexDocument?.buffer.count ?? 0) ? index : nil
                 }
             }
         }
@@ -359,7 +384,8 @@ class HexTextView: NSView {
             let col = Int(relativeX / charWidth)
             if col >= 0 && col < bytesPerRow {
                 let index = line * bytesPerRow + col
-                return index < (hexDocument?.buffer.count ?? 0) ? index : nil
+                // Allow selecting EOF position (one past the end)
+                return index <= (hexDocument?.buffer.count ?? 0) ? index : nil
             }
         }
         
@@ -395,13 +421,13 @@ class HexTextView: NSView {
             handled = true
             switch specialKey {
             case .upArrow: newCursor = max(0, cursor - bytesPerRow)
-            case .downArrow: newCursor = min(document.buffer.count - 1, cursor + bytesPerRow)
+            case .downArrow: newCursor = min(document.buffer.count, cursor + bytesPerRow)
             case .leftArrow: newCursor = max(0, cursor - 1)
-            case .rightArrow: newCursor = min(document.buffer.count - 1, cursor + 1)
+            case .rightArrow: newCursor = min(document.buffer.count, cursor + 1)
             case .pageUp: newCursor = max(0, cursor - bytesPerRow * 16)
-            case .pageDown: newCursor = min(document.buffer.count - 1, cursor + bytesPerRow * 16)
+            case .pageDown: newCursor = min(document.buffer.count, cursor + bytesPerRow * 16)
             case .home: newCursor = 0
-            case .end: newCursor = document.buffer.count - 1
+            case .end: newCursor = document.buffer.count
             default: handled = false
             }
         }
@@ -589,7 +615,8 @@ class HexTextView: NSView {
     
     private func moveCursorRight() {
         guard let document = hexDocument, let cursor = currentCursor else { return }
-        let newCursor = min(document.buffer.count - 1, cursor + 1)
+        // Allow moving to EOF position (one past the end)
+        let newCursor = min(document.buffer.count, cursor + 1)
         currentCursor = newCursor
         currentSelection = [newCursor]
         currentAnchor = newCursor
