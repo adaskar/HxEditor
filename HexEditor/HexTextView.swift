@@ -541,11 +541,7 @@ class HexTextView: NSView {
                         }
                         moveCursorRight()
                     }
-                    
-                    onSelectionChanged?(currentSelection)
-                    onCursorChanged?(currentCursor)
-                    scrollToCursor()
-                    needsDisplay = true
+                    // moveCursorRight already updates selection, cursor, scrolls, and triggers display
                 } else {
                     // First nibble: store it
                     pendingHexNibble = nibble
@@ -587,6 +583,7 @@ class HexTextView: NSView {
                     }
                     moveCursorRight()
                 }
+                // moveCursorRight already updates selection, cursor, scrolls, and triggers display
             }
         }
     }
