@@ -127,7 +127,7 @@ class ComparisonHexTextView: NSView {
         let firstLine = max(0, Int(dirtyRect.minY / lineHeight))
         let lastLine = max(firstLine, Int(dirtyRect.maxY / lineHeight))
         
-        let attributes: [NSAttributedString.Key: Any] = [
+        let _: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor.labelColor
         ]

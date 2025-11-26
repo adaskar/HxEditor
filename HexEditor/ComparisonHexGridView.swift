@@ -14,7 +14,7 @@ struct ComparisonHexGridView: NSViewRepresentable {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = true
-        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .legacy // Always-visible scrollbars, no auto-hide
         scrollView.borderType = .noBorder
         scrollView.backgroundColor = NSColor(named: "BackgroundColor") ?? .textBackgroundColor
         

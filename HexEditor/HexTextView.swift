@@ -142,7 +142,7 @@ class HexTextView: NSView {
         let firstLine = max(0, Int(dirtyRect.minY / lineHeight))
         let lastLine = max(firstLine, Int(dirtyRect.maxY / lineHeight))
         
-        let attributes: [NSAttributedString.Key: Any] = [
+        let _: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: NSColor.labelColor
         ]
@@ -386,9 +386,13 @@ class HexTextView: NSView {
         var newCursor = cursor
         var handled = false
         
-        // Handle Backspace (Delete) first to prevent it being treated as input
-        if event.keyCode == 51 { // Delete
+        // Handle special keys that should be ignored or have no effect
+        if event.keyCode == 51 { // Delete/Backspace
             handleBackspace()
+            return
+        }
+        
+        if event.keyCode == 53 { // Escape - no effect
             return
         }
 
