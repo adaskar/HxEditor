@@ -140,7 +140,6 @@ class ComparisonHexTextView: NSView {
         // Use FIXED layout positions to prevent shifting when bounds change
         let addressWidth = 10 * charWidth
         let hexByteWidth = 3 * charWidth
-        let asciiWidth = CGFloat(bytesPerRow) * charWidth
         let byteGrouping = 8
         let hexBlockWidth = (CGFloat(bytesPerRow) * hexByteWidth) + (CGFloat(bytesPerRow / byteGrouping) * charWidth)
         
