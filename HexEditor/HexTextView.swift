@@ -533,7 +533,21 @@ class HexTextView: NSView {
             needsDisplay = true
         } else {
             // Standard backspace behavior (delete previous char)
-            if cursor > 0 {
+            // Special case: if cursor is on the last byte, delete it instead of the previous byte
+            if cursor == document.buffer.count - 1 && cursor >= 0 {
+                // Delete the current (last) byte
+                document.delete(at: cursor, undoManager: undoManager)
+                // Move cursor to previous position (or stay at 0 if it was the only byte)
+                let newCursor = max(0, cursor - 1)
+                currentCursor = newCursor
+                currentSelection = [newCursor]
+                currentAnchor = newCursor
+                onSelectionChanged?(currentSelection)
+                onCursorChanged?(currentCursor)
+                scrollToCursor()
+                needsDisplay = true
+            } else if cursor > 0 {
+                // Normal case: delete previous byte
                 document.delete(at: cursor - 1, undoManager: undoManager)
                 moveCursorLeft()
             }
