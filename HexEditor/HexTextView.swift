@@ -470,38 +470,73 @@ class HexTextView: NSView {
         
         if isHexInputMode {
             if char.hexDigitValue != nil {
-                // Simple byte replacement for now
-                // In a real hex editor, we'd handle nibbles.
-                // Here we assume the user types full bytes or we just replace the byte with the value?
-                // Actually, replacing a whole byte with a nibble value (0-15) is wrong.
-                // But without nibble state, we can't do much.
-                // Let's implement a simple "shift and add" or just ignore for now to avoid data corruption.
-                // Or: assume the user wants to replace the byte with (char) repeated? No.
-                
-                // Let's try to be smart:
-                // If we are at a byte, and type 'A', maybe we should wait for next key?
-                // For this task, I'll implement ASCII editing fully, and Hex editing as "replace byte with 0x0(Value)"?
-                // No, that's bad.
-                // I'll leave Hex editing as valid only if I can implement it right.
-                // Given the constraints, I'll implement ASCII editing.
+                // Hex input logic (placeholder for now as per previous code)
             }
         } else {
             if let asciiValue = char.asciiValue {
-                if isOverwriteMode {
-                    document.replace(at: cursor, with: asciiValue, undoManager: undoManager)
+                // Check for selection overwrite
+                if currentSelection.count > 1 {
+                    let sortedSelection = currentSelection.sorted()
+                    let insertionIndex = sortedSelection.first ?? cursor
+                    
+                    // Group undo for atomic operation
+                    undoManager?.beginUndoGrouping()
+                    
+                    // Delete selected range
+                    document.delete(indices: sortedSelection, undoManager: undoManager)
+                    
+                    // Insert new character
+                    document.insert(asciiValue, at: insertionIndex, undoManager: undoManager)
+                    
+                    undoManager?.endUndoGrouping()
+                    
+                    // Update cursor to be after the inserted byte
+                    let newCursor = insertionIndex + 1
+                    currentCursor = newCursor
+                    currentSelection = [newCursor]
+                    currentAnchor = newCursor
+                    onSelectionChanged?(currentSelection)
+                    onCursorChanged?(currentCursor)
+                    scrollToCursor()
+                    needsDisplay = true
                 } else {
-                    document.insert(asciiValue, at: cursor, undoManager: undoManager)
+                    // Standard single cursor behavior
+                    if isOverwriteMode {
+                        document.replace(at: cursor, with: asciiValue, undoManager: undoManager)
+                    } else {
+                        document.insert(asciiValue, at: cursor, undoManager: undoManager)
+                    }
+                    moveCursorRight()
                 }
-                moveCursorRight()
             }
         }
     }
     
     private func handleBackspace() {
         guard let document = hexDocument, let cursor = currentCursor else { return }
-        if cursor > 0 {
-            document.delete(at: cursor - 1, undoManager: undoManager)
-            moveCursorLeft()
+        
+        if currentSelection.count > 1 {
+            // Delete all selected bytes
+            let sortedSelection = currentSelection.sorted()
+            let newCursorIndex = sortedSelection.first ?? 0
+            
+            document.delete(indices: sortedSelection, undoManager: undoManager)
+            
+            // Move cursor to the start of where the deletion happened
+            let newCursor = min(newCursorIndex, document.buffer.count) // Ensure valid
+            currentCursor = newCursor
+            currentSelection = [newCursor]
+            currentAnchor = newCursor
+            onSelectionChanged?(currentSelection)
+            onCursorChanged?(currentCursor)
+            scrollToCursor()
+            needsDisplay = true
+        } else {
+            // Standard backspace behavior (delete previous char)
+            if cursor > 0 {
+                document.delete(at: cursor - 1, undoManager: undoManager)
+                moveCursorLeft()
+            }
         }
     }
     
