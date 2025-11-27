@@ -126,10 +126,13 @@ struct StringsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Spacer()
-                Button("Close") {
-                    isPresented = false
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.title3)
                 }
-                .keyboardShortcut(.cancelAction)
+                .buttonStyle(.plain)
+                .focusable(false)
             }
             .padding()
         }

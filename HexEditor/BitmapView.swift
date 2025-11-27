@@ -60,11 +60,13 @@ struct BitmapView: View {
 
                 Spacer()
 
-                Button("Close") {
-                    isPresented = false
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.title3)
                 }
-                .keyboardShortcut(.cancelAction)
-                .font(.system(size: 11))
+                .buttonStyle(.plain)
+                .focusable(false)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)

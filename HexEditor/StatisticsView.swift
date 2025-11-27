@@ -28,6 +28,14 @@ struct StatisticsView: View {
                 }
                 
                 Spacer()
+                
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -265,19 +273,6 @@ struct StatisticsView: View {
                     }
                 }
             }
-            
-            Divider()
-            
-            // Footer
-            HStack {
-                Spacer()
-                Button("Close") {
-                    isPresented = false
-                }
-                .keyboardShortcut(.cancelAction)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
         }
         .frame(width: 650, height: 600)
         .background(Color(NSColor.windowBackgroundColor))

@@ -31,10 +31,14 @@ struct ContentView: View {
     @State private var showDuplicateAlert = false
     @State private var showFileExporter = false
     @State private var showEditWarning = false
+    @State private var showExport = false
+    @State private var showDisassembler = false
+    @State private var showMetadataEditor = false
 
     @Environment(\.openDocument) private var openDocument
     
     @StateObject private var bookmarkManager = BookmarkManager()
+    @StateObject private var metadataManager = MetadataManager()
     
     private var duplicateFilename: String {
         let originalName = document.filename ?? "Untitled"
@@ -103,7 +107,8 @@ struct ContentView: View {
                         selection: $selection,
                         isPresented: $showSearch,
                         cursorIndex: $cursorIndex,
-                        selectionAnchor: $selectionAnchor
+                        selectionAnchor: $selectionAnchor,
+                        undoManager: undoManager
                     )
                 }
                 .padding(.top, 20)
@@ -173,6 +178,21 @@ struct ContentView: View {
                     Label("Quick Actions", systemImage: "wand.and.stars")
                 }
                 .help("Quick editing actions")
+                
+                Button(action: { showExport = true }) {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                }
+                .help("Export data in various formats")
+                
+                Button(action: { showDisassembler = true }) {
+                    Label("Disassemble", systemImage: "cpu")
+                }
+                .help("Disassemble code")
+                
+                Button(action: { showMetadataEditor = true }) {
+                    Label("Metadata", systemImage: "info.circle")
+                }
+                .help("Edit file metadata")
 
                 Button(action: { showInspector.toggle() }) {
                     Label("Inspector", systemImage: showInspector ? "sidebar.right" : "sidebar.right")
@@ -215,6 +235,26 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showQuickActions) {
             QuickActionsView(document: document, selection: $selection, isPresented: $showQuickActions, undoManager: undoManager)
+        }
+        .sheet(isPresented: $showExport) {
+            ExportView(document: document, selection: $selection, isPresented: $showExport)
+        }
+        .sheet(isPresented: $showDisassembler) {
+            DisassemblerView(document: document, selection: $selection, isPresented: $showDisassembler, cursorIndex: $cursorIndex, selectionAnchor: $selectionAnchor)
+        }
+        .sheet(isPresented: $showMetadataEditor) {
+            MetadataEditorView(
+                document: document,
+                metadataManager: metadataManager,
+                isPresented: $showMetadataEditor,
+                selection: $selection,
+                cursorIndex: $cursorIndex,
+                selectionAnchor: $selectionAnchor,
+                fileURL: document.filename.map { URL(fileURLWithPath: $0) },
+                fileSize: document.buffer.count,
+                creationDate: nil,
+                modificationDate: nil
+            )
         }
         .confirmationDialog("Read-Only Document", isPresented: $showDuplicateAlert, titleVisibility: .visible) {
             Button("Duplicate", role: .none) {

@@ -28,6 +28,14 @@ struct ChecksumView: View {
                 }
                 
                 Spacer()
+                
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -59,6 +67,7 @@ struct ChecksumView: View {
                 }
                 .toggleStyle(.button)
                 .buttonStyle(.plain)
+                .focusable(false)
                 .disabled(selection.isEmpty)
                 .onChange(of: useSelection) {
                     calculateChecksums()
@@ -103,9 +112,7 @@ struct ChecksumView: View {
                 .padding(.bottom, 12)
             }
             
-            Divider()
-            
-            // Footer with status and close button
+            // Footer with status
             HStack {
                 if isCalculating {
                     ProgressView()
@@ -128,13 +135,6 @@ struct ChecksumView: View {
                     }
                     .transition(.opacity)
                 }
-                
-                Spacer()
-                
-                Button("Close") {
-                    isPresented = false
-                }
-                .keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)

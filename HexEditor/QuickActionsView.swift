@@ -27,8 +27,19 @@ struct QuickActionsView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Quick Actions")
-                .font(.title2.bold())
+            HStack {
+                Text("Quick Actions")
+                    .font(.title2.bold())
+                Spacer()
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.title2)
+                }
+                .buttonStyle(.plain)
+                .focusable(false)
+            }
+            .padding(.horizontal)
             
             if selection.isEmpty {
                 Text("Select bytes to perform actions")
@@ -129,12 +140,6 @@ struct QuickActionsView: View {
                     .padding()
                 }
             }
-            
-            // Close button
-            Button("Close") {
-                isPresented = false
-            }
-            .keyboardShortcut(.cancelAction)
         }
         .padding()
         .frame(width: 450, height: 600)

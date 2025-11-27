@@ -8,12 +8,18 @@ struct SearchView: View {
     @Binding var selectionAnchor: Int?
     
     @State private var searchString: String = ""
+    @State private var replaceString: String = ""
     @State private var isSearching = false
+    @State private var isReplacing = false
     @State private var searchError: String?
+    @State private var replaceMessage: String?
     @State private var searchMode: SearchMode = .text
     @State private var caseSensitive = false
+    @State private var showReplace = false
     @State private var offset = CGSize.zero
     @FocusState private var isFocused: Bool
+    
+    var undoManager: UndoManager?
     
     enum SearchMode: String, CaseIterable {
         case text = "Text"
@@ -29,19 +35,19 @@ struct SearchView: View {
         VStack(spacing: 12) {
             // Header / Drag Handle
             HStack {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: showReplace ? "arrow.left.arrow.right" : "magnifyingglass")
                     .foregroundColor(.secondary)
-                Text("Find")
+                Text(showReplace ? "Find & Replace" : "Find")
                     .font(.headline)
                     .foregroundColor(.secondary)
                 Spacer()
                 Button(action: { isPresented = false }) {
-                    Image(systemName: "xmark")
-                        .font(.caption)
+                    Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
+                        .font(.title2)
                 }
                 .buttonStyle(.plain)
-                .keyboardShortcut(.cancelAction)
+                .focusable(false)
             }
             .padding(.bottom, 4)
             
@@ -68,6 +74,31 @@ struct SearchView: View {
                 .help("Find Next")
             }
             
+            // Replace section (if enabled)
+            if showReplace {
+                Divider()
+                
+                // Replace Input
+                HStack(spacing: 8) {
+                    TextField(searchMode == .hex ? "Replace Hex" : "Replace Text", text: $replaceString)
+                        .textFieldStyle(.roundedBorder)
+                    
+                    Button(action: { performReplace(replaceAll: false) }) {
+                        Text("Replace")
+                            .frame(width: 60)
+                    }
+                    .disabled(searchString.isEmpty || selection.isEmpty)
+                    .help("Replace current match")
+                    
+                    Button(action: { performReplace(replaceAll: true) }) {
+                        Text("All")
+                            .frame(width: 40)
+                    }
+                    .disabled(searchString.isEmpty)
+                    .help("Replace all matches")
+                }
+            }
+            
             // Options
             HStack {
                 Picker("", selection: $searchMode) {
@@ -85,6 +116,13 @@ struct SearchView: View {
                 }
                 
                 Spacer()
+                
+                Button(action: { showReplace.toggle() }) {
+                    Image(systemName: showReplace ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .help(showReplace ? "Hide Replace" : "Show Replace")
             }
             
             // Status / Error
@@ -97,9 +135,23 @@ struct SearchView: View {
                         .foregroundColor(.secondary)
                     Spacer()
                 }
+            } else if isReplacing {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.5)
+                    Text("Replacing...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
             } else if let error = searchError {
                 Text(error)
                     .foregroundColor(.red)
+                    .font(.caption)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let message = replaceMessage {
+                Text(message)
+                    .foregroundColor(.green)
                     .font(.caption)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -276,5 +328,197 @@ struct SearchView: View {
             }
         }
         return true
+    }
+    
+    // MARK: - Replace Operations
+    
+    private func performReplace(replaceAll: Bool) {
+        guard !searchString.isEmpty else { return }
+        
+        isReplacing = true
+        replaceMessage = nil
+        searchError = nil
+        
+        let searchQuery = searchString
+        let replaceQuery = replaceString
+        
+        Task {
+            // Parse search bytes
+            let searchBytes: [UInt8]?
+            if searchMode == .hex {
+                let cleaned = searchQuery.components(separatedBy: .whitespacesAndNewlines).joined()
+                searchBytes = HexInputHelper.hexStringToBytes(cleaned)
+                if searchBytes == nil {
+                    await MainActor.run {
+                        searchError = "Invalid search hex format"
+                        isReplacing = false
+                    }
+                    return
+                }
+            } else {
+                if caseSensitive {
+                    searchBytes = [UInt8](searchQuery.data(using: .utf8) ?? Data())
+                } else {
+                    searchBytes = [UInt8](searchQuery.lowercased().data(using: .utf8) ?? Data())
+                }
+            }
+            
+            // Parse replace bytes
+            let replaceBytes: [UInt8]?
+            if searchMode == .hex {
+                let cleaned = replaceQuery.components(separatedBy: .whitespacesAndNewlines).joined()
+                replaceBytes = HexInputHelper.hexStringToBytes(cleaned)
+                if replaceBytes == nil {
+                    await MainActor.run {
+                        searchError = "Invalid replace hex format"
+                        isReplacing = false
+                    }
+                    return
+                }
+            } else {
+                // For text mode, always use the replace string as-is (preserve case)
+                replaceBytes = [UInt8](replaceQuery.data(using: .utf8) ?? Data())
+            }
+            
+            guard let sBytes = searchBytes, !sBytes.isEmpty,
+                  let rBytes = replaceBytes else {
+                await MainActor.run {
+                    searchError = "Invalid search or replace query"
+                    isReplacing = false
+                }
+                return
+            }
+            
+            if replaceAll {
+                await performReplaceAll(searchBytes: sBytes, replaceBytes: rBytes)
+            } else {
+                await performReplaceSingle(searchBytes: sBytes, replaceBytes: rBytes)
+            }
+        }
+    }
+    
+    private func performReplaceSingle(searchBytes: [UInt8], replaceBytes: [UInt8]) async {
+        // Check if current selection matches the search pattern
+        guard !selection.isEmpty,
+              let min = selection.min(),
+              let max = selection.max() else {
+            await MainActor.run {
+                searchError = "No selection or selection doesn't match search"
+                isReplacing = false
+            }
+            return
+        }
+        
+        let selectedSize = max - min + 1
+        if selectedSize != searchBytes.count {
+            await MainActor.run {
+                searchError = "Selection size doesn't match search pattern"
+                isReplacing = false
+            }
+            return
+        }
+        
+        // Verify selection matches search bytes
+        let buffer = document.buffer
+        let shouldLowercase = searchMode == .text && !caseSensitive
+        if !checkMatch(at: min, buffer: buffer, searchBytes: searchBytes, shouldLowercase: shouldLowercase) {
+            await MainActor.run {
+                searchError = "Selection doesn't match search pattern"
+                isReplacing = false
+            }
+            return
+        }
+        
+        // Perform replace
+        await MainActor.run {
+            // Delete old bytes and insert new ones
+            document.buffer.delete(in: min..<(min + searchBytes.count))
+            document.buffer.insert(replaceBytes, at: min)
+            
+            // Register undo
+            undoManager?.registerUndo(withTarget: document) { doc in
+                doc.buffer.delete(in: min..<(min + replaceBytes.count))
+                doc.buffer.insert(searchBytes, at: min)
+            }
+            
+            // Update selection to new replaced bytes
+            selection = Set(min..<(min + replaceBytes.count))
+            cursorIndex = min + replaceBytes.count - 1
+            selectionAnchor = min
+            
+            replaceMessage = "Replaced 1 occurrence"
+            isReplacing = false
+            
+            // Auto-search for next occurrence
+            Task {
+                if let nextIndex = await findForward(bytes: searchBytes, start: min + replaceBytes.count) {
+                    await MainActor.run {
+                        let range = nextIndex..<(nextIndex + searchBytes.count)
+                        selection = Set(range)
+                        cursorIndex = nextIndex + searchBytes.count - 1
+                        selectionAnchor = nextIndex
+                    }
+                }
+            }
+        }
+    }
+    
+    private func performReplaceAll(searchBytes: [UInt8], replaceBytes: [UInt8]) async {
+        var replacements: [(index: Int, oldBytes: [UInt8], newBytes: [UInt8])] = []
+        let buffer = document.buffer
+        let count = buffer.count
+        let searchCount = searchBytes.count
+        let shouldLowercase = searchMode == .text && !caseSensitive
+        
+        // Find all matches
+        var index = 0
+        while index <= count - searchCount {
+            if checkMatch(at: index, buffer: buffer, searchBytes: searchBytes, shouldLowercase: shouldLowercase) {
+                replacements.append((index: index, oldBytes: searchBytes, newBytes: replaceBytes))
+                index += searchCount // Skip past this match
+            } else {
+                index += 1
+            }
+            
+            // Yield periodically
+            if index % 5000 == 0 {
+                await Task.yield()
+            }
+        }
+        
+        if replacements.isEmpty {
+            await MainActor.run {
+                replaceMessage = "No matches found"
+                isReplacing = false
+            }
+            return
+        }
+        
+        await MainActor.run {
+            // Perform replacements from end to start to avoid index shifting
+            undoManager?.beginUndoGrouping()
+            
+            for replacement in replacements.reversed() {
+                let idx = replacement.index
+                document.buffer.delete(in: idx..<(idx + searchBytes.count))
+                document.buffer.insert(replaceBytes, at: idx)
+                
+                // Register individual undo
+                undoManager?.registerUndo(withTarget: document) { doc in
+                    doc.buffer.delete(in: idx..<(idx + replaceBytes.count))
+                    doc.buffer.insert(searchBytes, at: idx)
+                }
+            }
+            
+            undoManager?.endUndoGrouping()
+            
+            // Clear selection
+            selection = []
+            cursorIndex = nil
+            selectionAnchor = nil
+            
+            replaceMessage = "Replaced \(replacements.count) occurrence\(replacements.count == 1 ? "" : "s")"
+            isReplacing = false
+        }
     }
 }
