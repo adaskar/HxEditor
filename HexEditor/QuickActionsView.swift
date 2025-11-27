@@ -190,11 +190,21 @@ struct QuickActionsView: View {
         }
     }
     
+    // MARK: - Helper Functions
+    
+    /// Filters selection to only include valid indices within buffer bounds
+    private func validIndices(from selection: Set<Int>) -> [Int] {
+        return selection.sorted().filter { $0 >= 0 && $0 < document.buffer.count }
+    }
+    
+    // MARK: - Actions
+    
     private func performFill() {
         guard !selection.isEmpty else { return }
         guard let byte = UInt8(fillByte, radix: 16) else { return }
 
-        let sorted = selection.sorted()
+        let sorted = validIndices(from: selection)
+        guard !sorted.isEmpty else { return }
         let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
 
         // Perform the fill without individual undo registration
@@ -212,7 +222,8 @@ struct QuickActionsView: View {
     
     private func generatePattern() {
         guard !selection.isEmpty else { return }
-        let sorted = selection.sorted()
+        let sorted = validIndices(from: selection)
+        guard !sorted.isEmpty else { return }
         let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
 
         // Perform the pattern generation without individual undo registration
@@ -245,7 +256,8 @@ struct QuickActionsView: View {
     
     private func reverseBytes() {
         guard !selection.isEmpty else { return }
-        let sorted = selection.sorted()
+        let sorted = validIndices(from: selection)
+        guard !sorted.isEmpty else { return }
         let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
         let bytes = sorted.map { document.buffer[$0] }
         let reversed = bytes.reversed()
@@ -265,7 +277,8 @@ struct QuickActionsView: View {
     
     private func swapEndianness() {
         guard !selection.isEmpty else { return }
-        let sorted = selection.sorted()
+        let sorted = validIndices(from: selection) // Changed from selection.sorted()
+        guard !sorted.isEmpty else { return } // Added guard
         let originalBytes = sorted.map { (index: $0, byte: document.buffer[$0]) }
 
         // Perform the endianness swap without individual undo registration
@@ -315,7 +328,7 @@ struct QuickActionsView: View {
     }
     
     private func getSelectionData() -> Data {
-        let sorted = selection.sorted()
+        let sorted = validIndices(from: selection)
         let bytes = sorted.map { document.buffer[$0] }
         return Data(bytes)
     }

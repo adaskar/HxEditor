@@ -234,7 +234,8 @@ struct ExportView: View {
     }
     
     private func getExportData() -> [UInt8] {
-        return selection.sorted().map { document.buffer[$0] }
+        let validIndices = selection.sorted().filter { $0 >= 0 && $0 < document.buffer.count }
+        return validIndices.map { document.buffer[$0] }
     }
     
     private func generatePreview() {

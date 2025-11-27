@@ -110,36 +110,43 @@ struct FileInfoView: View {
     @ViewBuilder
     private var stringsView: some View {
         if !selection.isEmpty {
-            let sortedIndices = selection.sorted()
-            let selectedBytes = sortedIndices.map { document.buffer[$0] }
-            
-            VStack(alignment: .leading, spacing: 8) {
-                sectionHeader("String Previews (\(selectedBytes.count) bytes)")
+            let sortedIndices = selection.sorted().filter { $0 >= 0 && $0 < document.buffer.count }
+            if !sortedIndices.isEmpty {
+                let selectedBytes = sortedIndices.map { document.buffer[$0] }
                 
-                // ASCII
-                let asciiString = selectedBytes.compactMap { byte in
-                    (byte >= 32 && byte <= 126) ? String(UnicodeScalar(byte)) : nil
-                }.joined()
-                
-                if !asciiString.isEmpty {
-                    inspectorRow(title: "ASCII", value: asciiString.prefix(50).description)
-                } else {
-                    inspectorRow(title: "ASCII", value: "(no printable characters)")
+                VStack(alignment: .leading, spacing: 8) {
+                    sectionHeader("String Previews (\(selectedBytes.count) bytes)")
+                    
+                    // ASCII
+                    let asciiString = selectedBytes.compactMap { byte in
+                        (byte >= 32 && byte <= 126) ? String(UnicodeScalar(byte)) : nil
+                    }.joined()
+                    
+                    if !asciiString.isEmpty {
+                        inspectorRow(title: "ASCII", value: asciiString.prefix(50).description)
+                    } else {
+                        inspectorRow(title: "ASCII", value: "(no printable characters)")
+                    }
+                    
+                    // UTF-8
+                    let utf8String = String(bytes: selectedBytes, encoding: .utf8) ?? "Invalid UTF-8"
+                    inspectorRow(title: "UTF-8", value: utf8String.prefix(50).description)
+                    
+                    // Raw ASCII (with dots for non-printable)
+                    let rawAscii = selectedBytes.map { byte in
+                        (byte >= 32 && byte <= 126) ? String(UnicodeScalar(byte)) : "·"
+                    }.joined()
+                    inspectorRow(title: "Raw ASCII", value: rawAscii.prefix(50).description)
+                    
+                    // Hex dump
+                    let hexDump = selectedBytes.map { String(format: "%02X", $0) }.joined(separator: " ")
+                    inspectorRow(title: "Hex", value: hexDump.prefix(100).description)
                 }
-                
-                // UTF-8
-                let utf8String = String(bytes: selectedBytes, encoding: .utf8) ?? "Invalid UTF-8"
-                inspectorRow(title: "UTF-8", value: utf8String.prefix(50).description)
-                
-                // Raw ASCII (with dots for non-printable)
-                let rawAscii = selectedBytes.map { byte in
-                    (byte >= 32 && byte <= 126) ? String(UnicodeScalar(byte)) : "·"
-                }.joined()
-                inspectorRow(title: "Raw ASCII", value: rawAscii.prefix(50).description)
-                
-                // Hex dump
-                let hexDump = selectedBytes.map { String(format: "%02X", $0) }.joined(separator: " ")
-                inspectorRow(title: "Hex", value: hexDump.prefix(100).description)
+            } else {
+                Text("Selection out of bounds")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
             }
         } else {
             Text("No selection")
@@ -172,13 +179,16 @@ struct FileInfoView: View {
                             .padding(.vertical, 4)
                         sectionHeader("Statistics")
                         
-                        let bytes = selection.sorted().map { document.buffer[$0] }
-                        let sum = bytes.reduce(0) { Int($0) + Int($1) }
-                        let avg = Double(sum) / Double(bytes.count)
-                        
-                        inspectorRow(title: "Average", value: String(format: "%.2f", avg))
-                        inspectorRow(title: "Min Byte", value: "0x\(String(format: "%02X", bytes.min() ?? 0))")
-                        inspectorRow(title: "Max Byte", value: "0x\(String(format: "%02X", bytes.max() ?? 0))")
+                        let sortedIndices = selection.sorted().filter { $0 >= 0 && $0 < document.buffer.count }
+                        if !sortedIndices.isEmpty {
+                            let bytes = sortedIndices.map { document.buffer[$0] }
+                            let sum = bytes.reduce(0) { Int($0) + Int($1) }
+                            let avg = Double(sum) / Double(bytes.count)
+                            
+                            inspectorRow(title: "Average", value: String(format: "%.2f", avg))
+                            inspectorRow(title: "Min Byte", value: "0x\(String(format: "%02X", bytes.min() ?? 0))")
+                            inspectorRow(title: "Max Byte", value: "0x\(String(format: "%02X", bytes.max() ?? 0))")
+                        }
                     }
                 }
             } else {

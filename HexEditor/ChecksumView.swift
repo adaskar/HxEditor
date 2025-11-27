@@ -263,8 +263,15 @@ struct ChecksumView: View {
         let dataToHash: Data
         if useSelection && !selection.isEmpty {
             let sortedIndices = selection.sorted()
-            let bytes = sortedIndices.map { document.buffer[$0] }
-            dataToHash = Data(bytes)
+            // Filter out indices that are out of bounds
+            let validIndices = sortedIndices.filter { $0 >= 0 && $0 < document.buffer.count }
+            if !validIndices.isEmpty {
+                let bytes = validIndices.map { document.buffer[$0] }
+                dataToHash = Data(bytes)
+            } else {
+                // No valid indices, use empty data
+                dataToHash = Data()
+            }
         } else {
             dataToHash = Data(document.buffer)
         }
