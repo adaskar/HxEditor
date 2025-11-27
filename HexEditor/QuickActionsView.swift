@@ -182,7 +182,7 @@ struct QuickActionsView: View {
             contentType: .item,
             defaultFilename: duplicateFilename
         ) { result in
-            if case .success(let url) = result {
+            if case .success(_) = result {
                 // Handle duplication success if needed
                 // For now just make editable as we are in a sheet
                 document.readOnly = false

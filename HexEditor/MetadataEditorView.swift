@@ -384,7 +384,7 @@ struct MetadataEditorView: View {
     
     private func colorFromString(_ string: String) -> Color {
         // Convert hex string to Color
-        var hex = string.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        let hex = string.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         if hex.count == 6 {
             let scanner = Scanner(string: hex)
             var rgb: UInt64 = 0
