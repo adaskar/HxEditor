@@ -99,6 +99,31 @@ struct HexGridView: NSViewRepresentable {
                     self?.regenerateTextView()
                 }
                 .store(in: &cancellables)
+            
+            parent.document.$undoRedoSelectionRange
+                .compactMap { $0 }
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] range in
+                    self?.handleUndoRedoSelection(range)
+                }
+                .store(in: &cancellables)
+        }
+        
+        func handleUndoRedoSelection(_ range: Range<Int>) {
+            if range.isEmpty {
+                // Deletion undo/redo: place cursor at position
+                let cursor = range.lowerBound
+                parent.selection = [cursor]
+                parent.cursorIndex = cursor
+                parent.selectionAnchor = cursor
+            } else {
+                // Insertion/Replacement undo/redo: select range
+                parent.selection = Set(range)
+                parent.cursorIndex = range.upperBound - 1
+                parent.selectionAnchor = range.lowerBound
+            }
+            // Force immediate update to view
+            textView?.setSelection(parent.selection, anchor: parent.selectionAnchor, cursor: parent.cursorIndex)
         }
         
         func regenerateTextView() {

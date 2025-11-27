@@ -526,7 +526,11 @@ class HexTextView: NSView {
                         undoManager?.beginUndoGrouping()
                         document.delete(indices: sortedSelection, undoManager: undoManager)
                         document.insert(byte, at: insertionIndex, undoManager: undoManager)
+                        document.delete(indices: sortedSelection, undoManager: undoManager)
+                        document.insert(byte, at: insertionIndex, undoManager: undoManager)
                         undoManager?.endUndoGrouping()
+                        
+                        if document.readOnly { return }
                         
                         let newCursor = insertionIndex + 1
                         currentCursor = newCursor
@@ -539,6 +543,9 @@ class HexTextView: NSView {
                         } else {
                             document.insert(byte, at: cursor, undoManager: undoManager)
                         }
+                        
+                        if document.readOnly { return }
+                        
                         moveCursorRight()
                     }
                     // moveCursorRight already updates selection, cursor, scrolls, and triggers display
@@ -565,6 +572,8 @@ class HexTextView: NSView {
                     
                     undoManager?.endUndoGrouping()
                     
+                    if document.readOnly { return }
+                    
                     // Update cursor to be after the inserted byte
                     let newCursor = insertionIndex + 1
                     currentCursor = newCursor
@@ -581,6 +590,9 @@ class HexTextView: NSView {
                     } else {
                         document.insert(asciiValue, at: cursor, undoManager: undoManager)
                     }
+                    
+                    if document.readOnly { return }
+                    
                     moveCursorRight()
                 }
                 // moveCursorRight already updates selection, cursor, scrolls, and triggers display
@@ -605,6 +617,8 @@ class HexTextView: NSView {
                 document.delete(indices: sortedSelection, undoManager: undoManager)
             }
             
+            if document.readOnly { return }
+            
             // Move cursor to the start of where the deletion happened
             let newCursor = min(newCursorIndex, document.buffer.count) // Ensure valid
             currentCursor = newCursor
@@ -619,6 +633,7 @@ class HexTextView: NSView {
             // Ensure cursor is within valid bounds before attempting delete
             if cursor > 0 && cursor <= document.buffer.count && cursor - 1 < document.buffer.count {
                 document.delete(at: cursor - 1, undoManager: undoManager)
+                if document.readOnly { return }
                 moveCursorLeft()
             }
         }
@@ -641,6 +656,8 @@ class HexTextView: NSView {
                 document.delete(indices: sortedSelection, undoManager: undoManager)
             }
             
+            if document.readOnly { return }
+            
             let newCursor = min(newCursorIndex, max(0, document.buffer.count - 1))
             currentCursor = newCursor
             currentSelection = [newCursor]
@@ -653,6 +670,7 @@ class HexTextView: NSView {
             // Forward delete: delete byte at cursor position
             if cursor < document.buffer.count {
                 document.delete(at: cursor, undoManager: undoManager)
+                if document.readOnly { return }
                 // Cursor stays at same position (now pointing to next byte)
                 let newCursor = min(cursor, max(0, document.buffer.count - 1))
                 currentCursor = newCursor
@@ -872,6 +890,8 @@ class HexTextView: NSView {
             document.insert(bytes: bytes, at: cursor, undoManager: undoManager)
         }
         
+        if document.readOnly { return }
+        
         let newCursor = cursor + bytes.count
         currentCursor = newCursor
         currentSelection = [newCursor]
@@ -887,6 +907,7 @@ class HexTextView: NSView {
         for index in currentSelection {
             document.replace(at: index, with: 0, undoManager: undoManager)
         }
+        if document.readOnly { return }
         needsDisplay = true
     }
     

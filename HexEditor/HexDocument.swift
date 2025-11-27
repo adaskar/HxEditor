@@ -7,6 +7,7 @@ final class HexDocument: ReferenceFileDocument {
     @Published var readOnly: Bool = true
     @Published var requestDuplicate = false
     @Published var filename: String?
+    @Published var undoRedoSelectionRange: Range<Int>? = nil
 
     init(initialData: Data = Data()) {
         self.buffer = GapBuffer(data: initialData)
@@ -45,6 +46,12 @@ final class HexDocument: ReferenceFileDocument {
             return
         }
         buffer.insert(byte, at: index)
+        
+        if undoManager?.isUndoing == true || undoManager?.isRedoing == true {
+            undoRedoSelectionRange = index..<(index + 1)
+        } else {
+            undoRedoSelectionRange = nil
+        }
 
         undoManager?.registerUndo(withTarget: self) { doc in
             doc.delete(at: index, undoManager: undoManager)
@@ -58,6 +65,12 @@ final class HexDocument: ReferenceFileDocument {
         }
         
         buffer.insert(bytes, at: index)
+        
+        if undoManager?.isUndoing == true || undoManager?.isRedoing == true {
+            undoRedoSelectionRange = index..<(index + bytes.count)
+        } else {
+            undoRedoSelectionRange = nil
+        }
 
         undoManager?.registerUndo(withTarget: self) { doc in
             doc.delete(indices: Array(index..<(index + bytes.count)), undoManager: undoManager)
@@ -71,6 +84,12 @@ final class HexDocument: ReferenceFileDocument {
         }
         let byte = buffer[index]
         buffer.delete(at: index)
+        
+        if undoManager?.isUndoing == true || undoManager?.isRedoing == true {
+            undoRedoSelectionRange = index..<(index + 1)
+        } else {
+            undoRedoSelectionRange = nil
+        }
 
         undoManager?.registerUndo(withTarget: self) { doc in
             doc.insert(byte, at: index, undoManager: undoManager)
@@ -88,6 +107,12 @@ final class HexDocument: ReferenceFileDocument {
         
         // Perform deletion
         buffer.delete(in: range)
+        
+        if undoManager?.isUndoing == true || undoManager?.isRedoing == true {
+            undoRedoSelectionRange = range.lowerBound..<range.lowerBound
+        } else {
+            undoRedoSelectionRange = nil
+        }
         
         undoManager?.registerUndo(withTarget: self) { doc in
             doc.insert(bytes: deletedBytes, at: range.lowerBound, undoManager: undoManager)
@@ -146,6 +171,12 @@ final class HexDocument: ReferenceFileDocument {
         }
         let oldByte = buffer[index]
         buffer[index] = byte
+        
+        if undoManager?.isUndoing == true || undoManager?.isRedoing == true {
+            undoRedoSelectionRange = index..<(index + 1)
+        } else {
+            undoRedoSelectionRange = nil
+        }
 
         undoManager?.registerUndo(withTarget: self) { doc in
             doc.replace(at: index, with: oldByte, undoManager: undoManager)
@@ -175,6 +206,12 @@ final class HexDocument: ReferenceFileDocument {
         if insertCount > 0 {
             let bytesToInsert = Array(bytes[replaceCount...])
             buffer.insert(bytesToInsert, at: index + replaceCount)
+        }
+        
+        if undoManager?.isUndoing == true || undoManager?.isRedoing == true {
+            undoRedoSelectionRange = index..<(index + bytes.count)
+        } else {
+            undoRedoSelectionRange = nil
         }
         
         undoManager?.registerUndo(withTarget: self) { doc in
