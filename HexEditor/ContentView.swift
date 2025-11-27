@@ -32,7 +32,6 @@ struct ContentView: View {
     @State private var showFileExporter = false
 
     @State private var showExport = false
-    @State private var showDisassembler = false
     @State private var showMetadataEditor = false
 
     @Environment(\.openDocument) private var openDocument
@@ -184,11 +183,7 @@ struct ContentView: View {
                 }
                 .help("Export data in various formats")
                 
-                Button(action: { showDisassembler = true }) {
-                    Label("Disassemble", systemImage: "cpu")
-                }
-                .help("Disassemble code")
-                
+
                 Button(action: { showMetadataEditor = true }) {
                     Label("Metadata", systemImage: "info.circle")
                 }
@@ -242,9 +237,7 @@ struct ContentView: View {
         .sheet(isPresented: $showExport) {
             ExportView(document: document, selection: $selection, isPresented: $showExport)
         }
-        .sheet(isPresented: $showDisassembler) {
-            DisassemblerView(document: document, selection: $selection, isPresented: $showDisassembler, cursorIndex: $cursorIndex, selectionAnchor: $selectionAnchor)
-        }
+
         .sheet(isPresented: $showMetadataEditor) {
             MetadataEditorView(
                 document: document,
