@@ -337,22 +337,21 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- Inspired by HxD hex editor
 - Built with SwiftUI and modern macOS frameworks
 - Uses CryptoKit for checksum calculations
 
 ## Future Enhancements
 
-- [ ] Find & Replace
+- [x] Find & Replace
 - [ ] Data structure templates
 - [x] Binary file comparison (Diff)
 - [x] String extraction tool
 - [x] Bitmap visualizer
 - [ ] Plugin system
 - [ ] Custom color schemes
-- [ ] Export to various formats (C array, Base64, etc.)
+- [x] Export to various formats (C array, Base64, etc.)
 - [ ] Disassembler view
-- [ ] File metadata editor
+- [x] File metadata editor
 
 ---
 
