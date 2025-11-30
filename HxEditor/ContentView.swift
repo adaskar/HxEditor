@@ -309,6 +309,18 @@ struct ContentView: View {
                 selectionAnchor = 0
             }
         }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            guard let provider = providers.first else { return false }
+            
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                if let url = url {
+                    DispatchQueue.main.async {
+                        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+                    }
+                }
+            }
+            return true
+        }
     }
     
     private func loadComparisonFile(url: URL) {

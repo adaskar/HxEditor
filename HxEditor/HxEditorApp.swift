@@ -30,6 +30,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         hasFinishedLaunching = true
+        // If no documents are open (e.g. not launched by opening a file), show the Open Panel
+        if NSDocumentController.shared.documents.isEmpty {
+            NSDocumentController.shared.openDocument(nil)
+        }
+    }
+    
+    func application(_ app: NSApplication, shouldRestoreApplicationState coder: NSCoder) -> Bool {
+        return false
     }
     
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
