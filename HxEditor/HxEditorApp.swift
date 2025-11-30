@@ -41,7 +41,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         // If no windows are visible, create a new document
         if !flag {
-            NSDocumentController.shared.newDocument(nil)
+            // Check if an Open Panel is already displayed to avoid duplicates
+            let hasOpenPanel = NSApp.windows.contains { $0 is NSOpenPanel && $0.isVisible }
+            if !hasOpenPanel {
+                NSDocumentController.shared.openDocument(nil)
+            }
         }
         return true
     }
