@@ -155,10 +155,6 @@ Export your data in multiple formats:
 
 #### From Source
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/HxEditor.git
-cd HxEditor
-
 # Open in Xcode
 open HxEditor.xcodeproj
 
@@ -231,12 +227,6 @@ Perfect for:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -247,14 +237,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Uses Apple's CryptoKit for cryptographic operations
 - Myers diff algorithm implementation inspired by various open-source projects
 
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/HxEditor/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/HxEditor/discussions)
-- **Email**: your.email@example.com
-
 ---
 
 <p align="center">
   Made with ❤️ for the macOS developer community
 </p>
+

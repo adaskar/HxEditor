@@ -15,6 +15,15 @@ struct HxEditorApp: App {
         DocumentGroup(newDocument: { HexDocument() }) { configuration in
             ContentView(document: configuration.document)
         }
+        .commands {
+            // Ensure proper File menu with New command
+            CommandGroup(replacing: .newItem) {
+                Button("New") {
+                    NSDocumentController.shared.newDocument(nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
+        }
     }
 }
 
